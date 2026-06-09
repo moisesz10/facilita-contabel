@@ -2,10 +2,36 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
+// IBGE state codes map
+const UF_IBGE_CODES = {
+  'AC': '12', 'AL': '27', 'AP': '16', 'AM': '13', 'BA': '29', 'CE': '23',
+  'DF': '53', 'ES': '32', 'GO': '52', 'MA': '21', 'MT': '51', 'MS': '50',
+  'MG': '31', 'PA': '15', 'PB': '25', 'PR': '41', 'PE': '26', 'PI': '22',
+  'RJ': '33', 'RN': '24', 'RS': '43', 'RO': '11', 'RR': '14', 'SC': '42',
+  'SP': '35', 'SE': '28', 'TO': '17'
+};
+
+// Generate deterministic 7-digit IBGE code matching the state code prefix
+function getIbgeMunCode(uf, cityName) {
+  const stateCode = UF_IBGE_CODES[uf.toUpperCase()] || '35';
+  if (uf.toUpperCase() === 'SP' && cityName.toUpperCase().includes('SÃO PAULO')) {
+    return '3550308';
+  }
+  // Deterministic 5-digit code based on city name
+  let hash = 0;
+  const name = cityName.trim().toUpperCase();
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash << 5) - hash + name.charCodeAt(i);
+    hash |= 0;
+  }
+  const suffix = String(Math.abs(hash) % 90000 + 10000); // 5 digits
+  return `${stateCode}${suffix}`;
+}
+
 // Helper to generate a random 44-digit SEFAZ access key (Chave de Acesso)
 // Format: UF(2) + AAMM(4) + CNPJ(14) + mod(2) + serie(3) + numero(9) + tpEmis(1) + cNF(8) + cDV(1)
-function generateChaveAcesso(cnpj, dateStr, nNF, serie, cNF) {
-  const uf = '35'; // SP
+function generateChaveAcesso(cnpj, dateStr, nNF, serie, cNF, emitterUf) {
+  const uf = UF_IBGE_CODES[emitterUf?.toUpperCase()] || '35';
   const date = new Date(dateStr);
   const yy = String(date.getFullYear()).slice(-2);
   const mm = String(date.getMonth() + 1).padStart(2, '0');
@@ -63,6 +89,10 @@ function generateNFeXml(data) {
     items = []
   } = data;
 
+  const emitStateCode = UF_IBGE_CODES[emitUf?.toUpperCase()] || '35';
+  const emitMunCode = getIbgeMunCode(emitUf, emitMunicipio);
+  const destMunCode = getIbgeMunCode(destUf, destMunicipio);
+
   const itemsXml = items.map((item, index) => `
     <det nItem="${index + 1}">
       <prod>
@@ -118,7 +148,7 @@ function generateNFeXml(data) {
   <NFe>
     <infNFe Id="NFe${chave}" versao="4.00">
       <ide>
-        <cUF>35</cUF>
+        <cUF>${emitStateCode}</cUF>
         <cNF>${chave.slice(-9, -1)}</cNF>
         <natOp>VENDA DE MERCADORIA</natOp>
         <mod>55</mod>
@@ -127,7 +157,7 @@ function generateNFeXml(data) {
         <dhEmi>${dhEmi}</dhEmi>
         <tpNF>1</tpNF>
         <idDest>1</idDest>
-        <cMunFG>3550308</cMunFG>
+        <cMunFG>${emitMunCode}</cMunFG>
         <tpImp>1</tpImp>
         <tpEmis>1</tpEmis>
         <cDV>${chave.slice(-1)}</cDV>
@@ -145,7 +175,7 @@ function generateNFeXml(data) {
           <xLgr>${emitLogradouro}</xLgr>
           <n>${emitNumero}</n>
           <xBairro>${emitBairro}</xBairro>
-          <cMun>3550308</cMun>
+          <cMun>${emitMunCode}</cMun>
           <xMun>${emitMunicipio}</xMun>
           <UF>${emitUf}</UF>
           <CEP>${emitCep.replace(/\D/g, '')}</CEP>
@@ -163,7 +193,7 @@ function generateNFeXml(data) {
           <xLgr>${destLogradouro}</xLgr>
           <n>${destNumero}</n>
           <xBairro>${destBairro}</xBairro>
-          <cMun>3550308</cMun>
+          <cMun>${destMunCode}</cMun>
           <xMun>${destMunicipio}</xMun>
           <UF>${destUf}</UF>
           <CEP>${destCep.replace(/\D/g, '')}</CEP>
@@ -304,7 +334,7 @@ export function generateMockInvoice(company, type = 'entrada') {
   const serie = '1';
   const cNF = String(Math.floor(Math.random() * 99999999)).padStart(8, '0');
 
-  const chave = generateChaveAcesso(emitCnpj, date, nNF, serie, cNF);
+  const chave = generateChaveAcesso(emitCnpj, date, nNF, serie, cNF, emitUf);
 
   const numItems = Math.floor(Math.random() * 4) + 1;
   const items = [];
