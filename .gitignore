@@ -7,6 +7,7 @@ frontend/node_modules/
 backend/database.json
 backend/uploads/
 backend/uploads/certificates/
+backend/alterdata_sync/
 
 # Frontend builds
 frontend/dist/

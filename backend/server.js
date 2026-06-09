@@ -163,7 +163,24 @@ app.get('/api/companies', (req, res) => {
 });
 
 app.post('/api/companies', upload.single('certificate'), (req, res) => {
-  const { cnpj, razaoSocial, uf, password, activeSync } = req.body;
+  const { 
+    cnpj, 
+    razaoSocial, 
+    uf, 
+    password, 
+    activeSync,
+    ie,
+    im,
+    naturezaJuridica,
+    tributacao,
+    regime,
+    dataAbertura,
+    logradouro,
+    numero,
+    bairro,
+    municipio,
+    cep
+  } = req.body;
   
   if (!cnpj || !razaoSocial) {
     return res.status(400).json({ error: 'CNPJ e Razão Social são obrigatórios.' });
@@ -192,6 +209,17 @@ app.post('/api/companies', upload.single('certificate'), (req, res) => {
     cnpj,
     razaoSocial,
     uf,
+    ie: ie || '',
+    im: im || '',
+    naturezaJuridica: naturezaJuridica || '',
+    tributacao: tributacao || '',
+    regime: regime || '',
+    dataAbertura: dataAbertura || '',
+    logradouro: logradouro || '',
+    numero: numero || '',
+    bairro: bairro || '',
+    municipio: municipio || '',
+    cep: cep || '',
     certName,
     certExpiration,
     certValid,

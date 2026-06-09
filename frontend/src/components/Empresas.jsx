@@ -8,7 +8,18 @@ export default function Empresas({ companies, onAddCompany, onDeleteCompany, onF
     razaoSocial: '',
     uf: 'SP',
     password: '',
-    activeSync: true
+    activeSync: true,
+    ie: '',
+    im: '',
+    naturezaJuridica: '',
+    tributacao: 'Simples Nacional',
+    regime: 'ME',
+    dataAbertura: '',
+    logradouro: '',
+    numero: '',
+    bairro: '',
+    municipio: '',
+    cep: ''
   });
   const [certificateFile, setCertificateFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,6 +43,17 @@ export default function Empresas({ companies, onAddCompany, onDeleteCompany, onF
     setFormData({ ...formData, cnpj: value });
   };
 
+  // Format CEP as typing: 00000-000
+  const handleCepChange = (e) => {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 8) value = value.slice(0, 8);
+    
+    if (value.length > 5) {
+      value = value.replace(/^(\d{5})(\d{3})/, '$1-$2');
+    }
+    setFormData({ ...formData, cep: value });
+  };
+
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setCertificateFile(e.target.files[0]);
@@ -53,6 +75,17 @@ export default function Empresas({ companies, onAddCompany, onDeleteCompany, onF
     submitData.append('uf', formData.uf);
     submitData.append('password', formData.password);
     submitData.append('activeSync', formData.activeSync);
+    submitData.append('ie', formData.ie);
+    submitData.append('im', formData.im);
+    submitData.append('naturezaJuridica', formData.naturezaJuridica);
+    submitData.append('tributacao', formData.tributacao);
+    submitData.append('regime', formData.regime);
+    submitData.append('dataAbertura', formData.dataAbertura);
+    submitData.append('logradouro', formData.logradouro);
+    submitData.append('numero', formData.numero);
+    submitData.append('bairro', formData.bairro);
+    submitData.append('municipio', formData.municipio);
+    submitData.append('cep', formData.cep.replace(/\D/g, ''));
     
     if (certificateFile) {
       submitData.append('certificate', certificateFile);
@@ -68,7 +101,18 @@ export default function Empresas({ companies, onAddCompany, onDeleteCompany, onF
         razaoSocial: '',
         uf: 'SP',
         password: '',
-        activeSync: true
+        activeSync: true,
+        ie: '',
+        im: '',
+        naturezaJuridica: '',
+        tributacao: 'Simples Nacional',
+        regime: 'ME',
+        dataAbertura: '',
+        logradouro: '',
+        numero: '',
+        bairro: '',
+        municipio: '',
+        cep: ''
       });
       setCertificateFile(null);
     }
@@ -212,7 +256,7 @@ export default function Empresas({ companies, onAddCompany, onDeleteCompany, onF
       {/* Add Company Modal */}
       {showModal && (
         <div className="modal-overlay">
-          <div className="modal-content glass-panel" style={{ width: '500px' }}>
+          <div className="modal-content glass-panel" style={{ width: '500px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="modal-header">
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Key size={20} className="nav-icon" style={{ color: 'var(--accent-light)' }} />
@@ -234,33 +278,171 @@ export default function Empresas({ companies, onAddCompany, onDeleteCompany, onF
                 />
               </div>
 
-              <div className="form-row">
-                <div className="form-group" style={{ flex: '3' }}>
-                  <label className="form-label">Razão Social</label>
+              <div className="form-group">
+                <label className="form-label">Razão Social</label>
+                <input
+                  type="text"
+                  placeholder="Nome da Empresa Contábil Ltda"
+                  className="form-input"
+                  value={formData.razaoSocial}
+                  onChange={(e) => setFormData({ ...formData, razaoSocial: e.target.value })}
+                  required
+                />
+              </div>
+
+              {/* Registration Data */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.75rem' }}>
+                <div className="form-group">
+                  <label className="form-label">Inscrição Estadual (IE)</label>
                   <input
                     type="text"
-                    placeholder="Nome da Empresa Contábil Ltda"
+                    placeholder="Isento ou Nº"
                     className="form-input"
-                    value={formData.razaoSocial}
-                    onChange={(e) => setFormData({ ...formData, razaoSocial: e.target.value })}
-                    required
+                    value={formData.ie}
+                    onChange={(e) => setFormData({ ...formData, ie: e.target.value })}
                   />
                 </div>
-                <div className="form-group" style={{ flex: '1' }}>
-                  <label className="form-label">UF (Estado)</label>
+                <div className="form-group">
+                  <label className="form-label">Inscrição Municipal (IM)</label>
+                  <input
+                    type="text"
+                    placeholder="Nº de Registro IM"
+                    className="form-input"
+                    value={formData.im}
+                    onChange={(e) => setFormData({ ...formData, im: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.75rem' }}>
+                <div className="form-group">
+                  <label className="form-label">Regime Tributário</label>
                   <select
                     className="form-input"
-                    value={formData.uf}
-                    onChange={(e) => setFormData({ ...formData, uf: e.target.value })}
+                    value={formData.tributacao}
+                    onChange={(e) => setFormData({ ...formData, tributacao: e.target.value })}
                   >
-                    {['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'].map(uf => (
-                      <option key={uf} value={uf}>{uf}</option>
-                    ))}
+                    <option value="Simples Nacional">Simples Nacional</option>
+                    <option value="Lucro Presumido">Lucro Presumido</option>
+                    <option value="Lucro Real">Lucro Real</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Regime Especial / Porte</label>
+                  <select
+                    className="form-input"
+                    value={formData.regime}
+                    onChange={(e) => setFormData({ ...formData, regime: e.target.value })}
+                  >
+                    <option value="MEI">MEI</option>
+                    <option value="ME">ME</option>
+                    <option value="EPP">EPP</option>
+                    <option value="Outros">Outros</option>
                   </select>
                 </div>
               </div>
 
-              <div style={{ borderTop: '1px solid var(--border)', margin: '1.5rem 0', paddingTop: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '0.75rem', marginTop: '0.75rem' }}>
+                <div className="form-group">
+                  <label className="form-label">Natureza Jurídica</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 206-2 - Sociedade Limitada"
+                    className="form-input"
+                    value={formData.naturezaJuridica}
+                    onChange={(e) => setFormData({ ...formData, naturezaJuridica: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Data de Abertura</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={formData.dataAbertura}
+                    onChange={(e) => setFormData({ ...formData, dataAbertura: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Address Section */}
+              <div style={{ borderTop: '1px solid var(--border)', margin: '1rem 0', paddingTop: '0.75rem' }}>
+                <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Endereço da Empresa
+                </h4>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.2fr', gap: '0.75rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">CEP</label>
+                    <input
+                      type="text"
+                      placeholder="00000-000"
+                      className="form-input"
+                      value={formData.cep}
+                      onChange={handleCepChange}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Logradouro / Rua</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Rua Oscar Freire"
+                      className="form-input"
+                      value={formData.logradouro}
+                      onChange={(e) => setFormData({ ...formData, logradouro: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '0.6fr 1.4fr', gap: '0.75rem', marginTop: '0.75rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">Número</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 123"
+                      className="form-input"
+                      value={formData.numero}
+                      onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Bairro</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Pinheiros"
+                      className="form-input"
+                      value={formData.bairro}
+                      onChange={(e) => setFormData({ ...formData, bairro: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.6fr', gap: '0.75rem', marginTop: '0.75rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">Cidade / Município</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: São Paulo"
+                      className="form-input"
+                      value={formData.municipio}
+                      onChange={(e) => setFormData({ ...formData, municipio: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">UF (Estado)</label>
+                    <select
+                      className="form-input"
+                      value={formData.uf}
+                      onChange={(e) => setFormData({ ...formData, uf: e.target.value })}
+                    >
+                      {['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'].map(uf => (
+                        <option key={uf} value={uf}>{uf}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--border)', margin: '1rem 0', paddingTop: '0.75rem' }}>
                 <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>
                   Certificado Digital A1 (.pfx ou .p12)
                 </h4>

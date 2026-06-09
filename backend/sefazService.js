@@ -4,19 +4,19 @@ import crypto from 'crypto';
 
 // Helper to generate a random 44-digit SEFAZ access key (Chave de Acesso)
 // Format: UF(2) + AAMM(4) + CNPJ(14) + mod(2) + serie(3) + numero(9) + tpEmis(1) + cNF(8) + cDV(1)
-function generateChaveAcesso(cnpj, type, dateStr) {
+function generateChaveAcesso(cnpj, dateStr, nNF, serie, cNF) {
   const uf = '35'; // SP
   const date = new Date(dateStr);
   const yy = String(date.getFullYear()).slice(-2);
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const cleanCnpj = cnpj.replace(/\D/g, '').padStart(14, '0');
   const mod = '55'; // NF-e
-  const serie = '001';
-  const numero = String(Math.floor(Math.random() * 999999) + 1).padStart(9, '0');
+  const cleanSerie = String(serie).padStart(3, '0');
+  const cleanNumero = String(nNF).padStart(9, '0');
   const tpEmis = '1'; // Normal
-  const cNF = String(Math.floor(Math.random() * 99999999)).padStart(8, '0');
+  const cleanCNF = String(cNF).padStart(8, '0');
   
-  const keyWithoutDv = `${uf}${yy}${mm}${cleanCnpj}${mod}${serie}${numero}${tpEmis}${cNF}`;
+  const keyWithoutDv = `${uf}${yy}${mm}${cleanCnpj}${mod}${cleanSerie}${cleanNumero}${tpEmis}${cleanCNF}`;
   
   // Calculate modulo 11 check digit (DV)
   let sum = 0;
@@ -40,9 +40,23 @@ function generateNFeXml(data) {
     emitCnpj,
     emitName,
     emitIE,
+    emitIm,
+    emitLogradouro,
+    emitNumero,
+    emitBairro,
+    emitMunicipio,
+    emitUf,
+    emitCep,
     destCnpj,
     destName,
     destIE,
+    destIm,
+    destLogradouro,
+    destNumero,
+    destBairro,
+    destMunicipio,
+    destUf,
+    destCep,
     vProd,
     vNF,
     vICMS,
@@ -128,35 +142,37 @@ function generateNFeXml(data) {
         <CNPJ>${emitCnpj.replace(/\D/g, '')}</CNPJ>
         <xNome>${emitName}</xNome>
         <enderEmit>
-          <xLgr>Avenida Paulista</xLgr>
-          <n>1000</n>
-          <xBairro>Bela Vista</xBairro>
+          <xLgr>${emitLogradouro}</xLgr>
+          <n>${emitNumero}</n>
+          <xBairro>${emitBairro}</xBairro>
           <cMun>3550308</cMun>
-          <xMun>Sao Paulo</xMun>
-          <UF>SP</UF>
-          <CEP>01310100</CEP>
+          <xMun>${emitMunicipio}</xMun>
+          <UF>${emitUf}</UF>
+          <CEP>${emitCep.replace(/\D/g, '')}</CEP>
           <cPais>1058</cPais>
           <xPais>BRASIL</xPais>
         </enderEmit>
-        <IE>${emitIE || '111222333444'}</IE>
+        <IE>${emitIE ? emitIE.replace(/\D/g, '') : 'ISENTO'}</IE>
+        ${emitIm ? `<IM>${emitIm.replace(/\D/g, '')}</IM>` : ''}
         <CRT>3</CRT>
       </emit>
       <dest>
         <CNPJ>${destCnpj.replace(/\D/g, '')}</CNPJ>
         <xNome>${destName}</xNome>
         <enderDest>
-          <xLgr>Rua Oscar Freire</xLgr>
-          <n>500</n>
-          <xBairro>Pinheiros</xBairro>
+          <xLgr>${destLogradouro}</xLgr>
+          <n>${destNumero}</n>
+          <xBairro>${destBairro}</xBairro>
           <cMun>3550308</cMun>
-          <xMun>Sao Paulo</xMun>
-          <UF>SP</UF>
-          <CEP>05409010</CEP>
+          <xMun>${destMunicipio}</xMun>
+          <UF>${destUf}</UF>
+          <CEP>${destCep.replace(/\D/g, '')}</CEP>
           <cPais>1058</cPais>
           <xPais>BRASIL</xPais>
         </enderDest>
         <indIEDest>9</indIEDest>
-        <IE>${destIE || ''}</IE>
+        <IE>${destIE ? destIE.replace(/\D/g, '') : 'ISENTO'}</IE>
+        ${destIm ? `<IM>${destIm.replace(/\D/g, '')}</IM>` : ''}
       </dest>
       ${itemsXml}
       <total>
@@ -237,22 +253,66 @@ const MOCK_PRODUCTS = [
 ];
 
 // Generate an XML and return metadata for a simulated invoice
-export function generateMockInvoice(companyCnpj, companyName, type = 'entrada') {
+export function generateMockInvoice(company, type = 'entrada') {
+  const companyCnpj = company.cnpj;
+  const companyName = company.razaoSocial;
+  const companyUf = company.uf || 'SP';
+  const companyIe = company.ie || '110222333444';
+  const companyIm = company.im || '';
+  const companyLogradouro = company.logradouro || 'Rua Oscar Freire';
+  const companyNumero = company.numero || '500';
+  const companyBairro = company.bairro || 'Pinheiros';
+  const companyMunicipio = company.municipio || 'São Paulo';
+  const companyCep = company.cep || '05409010';
+
   const partner = MOCK_PARTNERS[Math.floor(Math.random() * MOCK_PARTNERS.length)];
+  const partnerAddress = {
+    logradouro: 'Avenida Paulista',
+    numero: '1000',
+    bairro: 'Bela Vista',
+    municipio: 'São Paulo',
+    uf: 'SP',
+    cep: '01310100'
+  };
+
   const date = new Date(Date.now() - Math.floor(Math.random() * 10 * 24 * 60 * 60 * 1000)); // Last 10 days
   const dhEmi = date.toISOString().split('.')[0] + '-03:00';
   
-  const chave = generateChaveAcesso(companyCnpj, type, date);
-  const nNF = String(Math.floor(Math.random() * 99999) + 1);
+  const emitCnpj = type === 'entrada' ? partner.cnpj : companyCnpj;
+  const emitName = type === 'entrada' ? partner.name : companyName;
+  const emitIE = type === 'entrada' ? partner.ie : companyIe;
+  const emitIm = type === 'entrada' ? '' : companyIm;
+  const emitLogradouro = type === 'entrada' ? partnerAddress.logradouro : companyLogradouro;
+  const emitNumero = type === 'entrada' ? partnerAddress.numero : companyNumero;
+  const emitBairro = type === 'entrada' ? partnerAddress.bairro : companyBairro;
+  const emitMunicipio = type === 'entrada' ? partnerAddress.municipio : companyMunicipio;
+  const emitUf = type === 'entrada' ? partnerAddress.uf : companyUf;
+  const emitCep = type === 'entrada' ? partnerAddress.cep : companyCep;
 
-  // Generate 1-4 random products
+  const destCnpj = type === 'entrada' ? companyCnpj : partner.cnpj;
+  const destName = type === 'entrada' ? companyName : partner.name;
+  const destIE = type === 'entrada' ? companyIe : partner.ie;
+  const destIm = type === 'entrada' ? companyIm : '';
+  const destLogradouro = type === 'entrada' ? companyLogradouro : partnerAddress.logradouro;
+  const destNumero = type === 'entrada' ? companyNumero : partnerAddress.numero;
+  const destBairro = type === 'entrada' ? companyBairro : partnerAddress.bairro;
+  const destMunicipio = type === 'entrada' ? companyMunicipio : partnerAddress.municipio;
+  const destUf = type === 'entrada' ? companyUf : partnerAddress.uf;
+  const destCep = type === 'entrada' ? companyCep : partnerAddress.cep;
+
+  const nNF = String(Math.floor(Math.random() * 99999) + 1);
+  const serie = '1';
+  const cNF = String(Math.floor(Math.random() * 99999999)).padStart(8, '0');
+
+  const chave = generateChaveAcesso(emitCnpj, date, nNF, serie, cNF);
+
   const numItems = Math.floor(Math.random() * 4) + 1;
   const items = [];
   let vProd = 0;
   for (let i = 0; i < numItems; i++) {
     const prodRef = MOCK_PRODUCTS[Math.floor(Math.random() * MOCK_PRODUCTS.length)];
     const qty = Math.floor(Math.random() * 10) + 1;
-    const price = prodRef.price * (0.9 + Math.random() * 0.2); // Add variation
+    const price = prodRef.price * (0.9 + Math.random() * 0.2);
     const total = qty * price;
     vProd += total;
     items.push({
@@ -262,20 +322,12 @@ export function generateMockInvoice(companyCnpj, companyName, type = 'entrada') 
       price,
       total,
       ncm: prodRef.ncm,
-      cfop: type === 'entrada' ? '1102' : prodRef.cfop_inside
+      cfop: prodRef.cfop_inside
     });
   }
   
   const vICMS = vProd * 0.18;
   const vNF = vProd;
-
-  const emitCnpj = type === 'entrada' ? partner.cnpj : companyCnpj;
-  const emitName = type === 'entrada' ? partner.name : companyName;
-  const emitIE = type === 'entrada' ? partner.ie : '110222333444';
-
-  const destCnpj = type === 'entrada' ? companyCnpj : partner.cnpj;
-  const destName = type === 'entrada' ? companyName : partner.name;
-  const destIE = type === 'entrada' ? '110222333444' : partner.ie;
 
   const data = {
     chave,
@@ -284,9 +336,23 @@ export function generateMockInvoice(companyCnpj, companyName, type = 'entrada') 
     emitCnpj,
     emitName,
     emitIE,
+    emitIm,
+    emitLogradouro,
+    emitNumero,
+    emitBairro,
+    emitMunicipio,
+    emitUf,
+    emitCep,
     destCnpj,
     destName,
     destIE,
+    destIm,
+    destLogradouro,
+    destNumero,
+    destBairro,
+    destMunicipio,
+    destUf,
+    destCep,
     vProd,
     vNF,
     vICMS,
@@ -427,7 +493,7 @@ export async function fetchSefazInvoices(company, limit = 5) {
   for (let i = 0; i < count; i++) {
     // Generate both entry and exit notes
     const type = Math.random() > 0.4 ? 'entrada' : 'saida';
-    const invoice = generateMockInvoice(company.cnpj, company.razaoSocial, type);
+    const invoice = generateMockInvoice(company, type);
     fetched.push(invoice);
   }
   
@@ -487,6 +553,40 @@ export function generateDanfeHtml(invoice) {
     </tr>
   `).join('');
 
+  // Extract address, IE, IM from XML
+  const getTagVal = (tag, text) => {
+    const regex = new RegExp(`<${tag}>([^<]+)<\/${tag}>`);
+    const match = text.match(regex);
+    return match ? match[1].trim() : '';
+  };
+
+  const parseXmlAddress = (xml, type) => {
+    const blockMatch = xml.match(type === 'emit' ? /<enderEmit>([\s\S]*?)<\/enderEmit>/ : /<enderDest>([\s\S]*?)<\/enderDest>/);
+    if (!blockMatch) return '';
+    const block = blockMatch[1];
+    const lgr = getTagVal('xLgr', block);
+    const n = getTagVal('n', block);
+    const bairro = getTagVal('xBairro', block);
+    const mun = getTagVal('xMun', block);
+    const uf = getTagVal('UF', block);
+    const cep = getTagVal('CEP', block);
+    
+    return `${lgr}, ${n} - ${bairro} - ${mun} - ${uf} - CEP: ${cep}`;
+  };
+
+  const emitAddress = parseXmlAddress(invoice.xmlContent, 'emit');
+  const destAddress = parseXmlAddress(invoice.xmlContent, 'dest');
+  
+  const emitBlockMatch = invoice.xmlContent.match(/<emit>([\s\S]*?)<\/emit>/);
+  const emitBlock = emitBlockMatch ? emitBlockMatch[1] : '';
+  const emitIE = getTagVal('IE', emitBlock);
+  const emitIM = getTagVal('IM', emitBlock);
+
+  const destBlockMatch = invoice.xmlContent.match(/<dest>([\s\S]*?)<\/dest>/);
+  const destBlock = destBlockMatch ? destBlockMatch[1] : '';
+  const destIE = getTagVal('IE', destBlock);
+  const destIM = getTagVal('IM', destBlock);
+
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -511,13 +611,14 @@ export function generateDanfeHtml(invoice) {
   <div class="box">
     <table style="width: 100%; border-collapse: collapse;">
       <tr>
-        <td style="width: 50%; vertical-align: top; padding-right: 10px;">
+        <td style="width: 55%; vertical-align: top; padding-right: 10px;">
           <span class="label">Emitente</span>
           <div class="value" style="font-weight: bold; font-size: 12px;">${invoice.issuerName}</div>
           <div class="value">CNPJ: ${invoice.issuerCnpj}</div>
-          <div class="value">Endereço: Avenida Paulista, 1000 - Bela Vista - São Paulo - SP</div>
+          <div class="value">IE: ${emitIE || 'ISENTO'} ${emitIM ? `| IM: ${emitIM}` : ''}</div>
+          <div class="value" style="margin-top: 4px; font-size: 10px; color: #333;">Endereço: ${emitAddress}</div>
         </td>
-        <td style="width: 50%; vertical-align: top; border-left: 1px solid #000; padding-left: 10px;">
+        <td style="width: 45%; vertical-align: top; border-left: 1px solid #000; padding-left: 10px;">
           <span class="label">Controle do Fisco - Chave de Acesso</span>
           <div class="value" style="font-weight: bold; font-size: 11px; letter-spacing: 0.5px;">${cleanKey}</div>
           <div style="margin-top: 8px; display: flex; justify-content: space-between;">
@@ -527,7 +628,7 @@ export function generateDanfeHtml(invoice) {
             </div>
             <div>
               <span class="label">Número</span>
-              <div class="value">${invoice.chave.slice(-9, -1)}</div>
+              <div class="value">${parseInt(invoice.chave.slice(25, 34), 10)}</div>
             </div>
             <div>
               <span class="label">Data Emissão</span>
@@ -550,15 +651,15 @@ export function generateDanfeHtml(invoice) {
         <span class="label">CNPJ / CPF</span>
         <div class="value">${invoice.recipientCnpj}</div>
       </div>
-    </div>
-    <div class="row">
-      <div class="col" style="flex: 2;">
-        <span class="label">Endereço</span>
-        <div class="value">Rua Oscar Freire, 500 - Pinheiros - São Paulo - SP</div>
-      </div>
       <div class="col">
-        <span class="label">CEP</span>
-        <div class="value">05409-010</div>
+        <span class="label">IE / IM</span>
+        <div class="value">${destIE || 'ISENTO'} ${destIM ? `/ ${destIM}` : ''}</div>
+      </div>
+    </div>
+    <div class="row" style="border-bottom: none;">
+      <div class="col">
+        <span class="label">Endereço</span>
+        <div class="value">${destAddress}</div>
       </div>
     </div>
   </div>
