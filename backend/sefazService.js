@@ -168,6 +168,12 @@ function generateNFeXml(data) {
         <procEmi>0</procEmi>
         <verProc>FacilitaContabil_v1.0</verProc>
       </ide>
+      <infRespTec>
+        <CNPJ>12345678000199</CNPJ>
+        <xContato>Responsável Técnico</xContato>
+        <email>tecnico@example.com</email>
+        <fone>11999999999</fone>
+      </infRespTec>
       <emit>
         <CNPJ>${emitCnpj.replace(/\D/g, '')}</CNPJ>
         <xNome>${emitName}</xNome>
@@ -228,6 +234,19 @@ function generateNFeXml(data) {
           <vNF>${vNF.toFixed(2)}</vNF>
         </ICMSTot>
       </total>
+      <cobr>
+        <dup>
+          <nDup>1</nDup>
+          <dVenc>${dhEmi.split('T')[0]}</dVenc>
+          <vDup>${vNF.toFixed(2)}</vDup>
+        </dup>
+      </cobr>
+      <IBSCBS>
+        <vICMS>${vICMS.toFixed(2)}</vICMS>
+        <vIPI>0.00</vIPI>
+        <vPIS>${(vProd * 0.0165).toFixed(2)}</vPIS>
+        <vCOFINS>${(vProd * 0.076).toFixed(2)}</vCOFINS>
+      </IBSCBS>
       <transp>
         <modFrete>9</modFrete>
       </transp>
