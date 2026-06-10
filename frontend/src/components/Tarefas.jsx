@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   ClipboardList,
 } from "lucide-react";
+import { formatDate, getDaysRemaining } from "../utils/format";
+
 
 export default function Tarefas({
   tasks,
@@ -53,21 +55,6 @@ export default function Tarefas({
     return comp ? comp.razaoSocial : "Empresa não cadastrada";
   };
 
-  const getDaysRemaining = (dueDateStr) => {
-    if (!dueDateStr) return null;
-    const diff = new Date(dueDateStr) - new Date();
-    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    return days;
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "Sem data";
-    const parts = dateStr.split("-");
-    if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-    return dateStr;
-  };
 
   const totalTasks = filteredTasks.length;
   const completedTasks = filteredTasks.filter(

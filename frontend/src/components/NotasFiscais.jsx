@@ -15,6 +15,8 @@ import {
   Folder,
   Cloud,
 } from "lucide-react";
+import { formatCurrency, formatCnpj, formatDate } from "../utils/format";
+
 
 const renderChannelStatus = (status, type) => {
   const Icon = type === "local" ? Folder : Cloud;
@@ -117,32 +119,6 @@ export default function NotasFiscais({ invoices, companies, onSyncInvoice }) {
     document.body.removeChild(element);
   };
 
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(val);
-  };
-
-  const formatCnpj = (value = "") => {
-    const clean = value.replace(/\D/g, "");
-    if (clean.length === 14) {
-      return clean.replace(
-        /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
-        "$1.$2.$3/$4-$5",
-      );
-    }
-    return value;
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "";
-    const parts = dateStr.split("-");
-    if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-    return dateStr;
-  };
 
   // Helper to get company name from CNPJ
   const getCompanyName = (cnpj) => {

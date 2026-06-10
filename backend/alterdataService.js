@@ -44,13 +44,7 @@ export function syncInvoiceToAlterdata(invoice) {
     } else {
       try {
         if (!fs.existsSync(alterdataDir)) {
-          try {
-            fs.mkdirSync(alterdataDir, { recursive: true });
-          } catch (err) {
-            throw new Error(
-              `Não foi possível criar o diretório Alterdata: ${err.message}`,
-            );
-          }
+          fs.mkdirSync(alterdataDir, { recursive: true });
         }
 
         const cleanCnpj = invoice.companyCnpj.replace(/\D/g, "");

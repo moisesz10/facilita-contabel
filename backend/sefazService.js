@@ -417,6 +417,24 @@ export function generateMockInvoice(
   };
 }
 
+const getTagVal = (tag, text) => {
+  const regex = new RegExp(
+    `<(\\w+:)?${tag}(\\s+[^>]*)?>([^<]+)<\\/(\\w+:)?${tag}>`,
+    "i",
+  );
+  const match = text.match(regex);
+  return match ? match[3].trim() : "";
+};
+
+const getInnerTag = (tag, text) => {
+  const regex = new RegExp(
+    `<(\\w+:)?${tag}(\\s+[^>]*)?>([\\s\\S]*?)<\\/(\\w+:)?${tag}>`,
+    "i",
+  );
+  const match = text.match(regex);
+  return match ? match[3] : "";
+};
+
 // Read XML file contents and extract fields via Regex (extremely fast and doesn't crash on slightly malformed inputs)
 export function parseNFeXml(xmlText) {
   try {
@@ -426,24 +444,6 @@ export function parseNFeXml(xmlText) {
       xmlText.includes("<Valores>") ||
       xmlText.includes("<Prestador") ||
       xmlText.includes("<CompNfse");
-
-    const getTagVal = (tag, text) => {
-      const regex = new RegExp(
-        `<(\\w+:)?${tag}(\\s+[^>]*)?>([^<]+)<\\/(\\w+:)?${tag}>`,
-        "i",
-      );
-      const match = text.match(regex);
-      return match ? match[3].trim() : "";
-    };
-
-    const getInnerTag = (tag, text) => {
-      const regex = new RegExp(
-        `<(\\w+:)?${tag}(\\s+[^>]*)?>([\\s\\S]*?)<\\/(\\w+:)?${tag}>`,
-        "i",
-      );
-      const match = text.match(regex);
-      return match ? match[3] : "";
-    };
 
     if (isNfse) {
       // It's a Service Invoice (NFS-e)
@@ -610,22 +610,23 @@ export async function fetchSefazInvoices(company, limit = 5) {
   return fetched;
 }
 
-export function generateDanfeHtml(invoice) {
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(val);
-  };
+const formatCurrency = (val) => {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(val || 0);
+};
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "";
-    const parts = dateStr.split("-");
-    if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-    return dateStr;
-  };
+const formatDate = (dateStr) => {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
+export function generateDanfeHtml(invoice) {
 
   const cleanKey = invoice.chave.replace(/(.{4})/g, "$1 ");
 

@@ -99,7 +99,25 @@ function saveDb(data) {
 // Memory cache of DB
 let db = loadDb();
 
+function normalizeInvoice(i) {
+  if (!i) return null;
+  const hasLocalSync = i.localSyncStatus !== undefined;
+  const hasCloudSync = i.cloudSyncStatus !== undefined;
+  return {
+    ...i,
+    localSyncStatus: hasLocalSync
+      ? i.localSyncStatus
+      : i.syncStatus === "synced"
+        ? "synced"
+        : i.syncStatus === "error"
+          ? "error"
+          : "pending",
+    cloudSyncStatus: hasCloudSync ? i.cloudSyncStatus : "disabled",
+  };
+}
+
 export const dbService = {
+
   // Companies
   getCompanies: () => db.companies,
   getCompanyByCnpj: (cnpj) => db.companies.find((c) => c.cnpj === cnpj),
@@ -173,41 +191,14 @@ export const dbService = {
     }
 
     // Inject localSyncStatus and cloudSyncStatus for backwards compatibility
-    list = list.map((i) => {
-      const hasLocalSync = i.localSyncStatus !== undefined;
-      const hasCloudSync = i.cloudSyncStatus !== undefined;
-      return {
-        ...i,
-        localSyncStatus: hasLocalSync
-          ? i.localSyncStatus
-          : i.syncStatus === "synced"
-            ? "synced"
-            : i.syncStatus === "error"
-              ? "error"
-              : "pending",
-        cloudSyncStatus: hasCloudSync ? i.cloudSyncStatus : "disabled",
-      };
-    });
+    list = list.map(normalizeInvoice);
 
     // Sort by date descending
     return list.sort((a, b) => new Date(b.date) - new Date(a.date));
   },
   getInvoiceByChave: (chave) => {
     const i = db.invoices.find((inv) => inv.chave === chave);
-    if (!i) return null;
-    return {
-      ...i,
-      localSyncStatus:
-        i.localSyncStatus !== undefined
-          ? i.localSyncStatus
-          : i.syncStatus === "synced"
-            ? "synced"
-            : i.syncStatus === "error"
-              ? "error"
-              : "pending",
-      cloudSyncStatus:
-        i.cloudSyncStatus !== undefined ? i.cloudSyncStatus : "disabled",
-    };
+    return normalizeInvoice(i);
   },
   addInvoice: (invoice) => {
     const existing = db.invoices.find((i) => i.chave === invoice.chave);

@@ -76,13 +76,12 @@ function runAutoFetchJob() {
       if (fetchedInvoices.length > 0) {
         let newCount = 0;
         fetchedInvoices.forEach((inv) => {
-          const added = dbService.addInvoice(inv);
-          if (added && added.createdAt === added.syncedAt) {
-            // Already existed
-          } else {
+          const existing = dbService.getInvoiceByChave(inv.chave);
+          if (!existing) {
+            const added = dbService.addInvoice(inv);
             newCount++;
             // Auto sync to Alterdata immediately
-            syncInvoiceToAlterdata(inv);
+            syncInvoiceToAlterdata(added);
           }
         });
         if (newCount > 0) {
@@ -419,10 +418,9 @@ app.post("/api/sefaz/fetch/:cnpj", async (req, res) => {
 
     let newCount = 0;
     fetchedInvoices.forEach((inv) => {
-      const added = dbService.addInvoice(inv);
-      if (added && added.createdAt === added.syncedAt) {
-        // Existed
-      } else {
+      const existing = dbService.getInvoiceByChave(inv.chave);
+      if (!existing) {
+        const added = dbService.addInvoice(inv);
         newCount++;
         syncInvoiceToAlterdata(added);
       }

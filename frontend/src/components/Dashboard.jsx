@@ -13,6 +13,8 @@ import {
   Cloud,
   Globe,
 } from "lucide-react";
+import { formatCurrency } from "../utils/format";
+
 
 export default function Dashboard({
   companies,
@@ -114,12 +116,6 @@ export default function Dashboard({
     1000,
   );
 
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(val);
-  };
 
   // Mock SEFAZ status for e-Radar widget
   const sefazStates = [

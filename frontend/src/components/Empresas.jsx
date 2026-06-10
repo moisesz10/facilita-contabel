@@ -9,7 +9,10 @@ import {
   EyeOff,
   ShieldCheck,
   CheckCircle2,
+  Building2,
 } from "lucide-react";
+import { formatCnpj, getDaysRemaining } from "../utils/format";
+
 
 export default function Empresas({
   companies,
@@ -116,24 +119,6 @@ export default function Empresas({
     }
   };
 
-  // Helper to get days remaining on certificate
-  const getDaysRemaining = (expString) => {
-    if (!expString) return null;
-    const diffTime = new Date(expString) - new Date();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
-  const formatCnpj = (value = "") => {
-    const clean = value.replace(/\D/g, "");
-    if (clean.length === 14) {
-      return clean.replace(
-        /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
-        "$1.$2.$3/$4-$5",
-      );
-    }
-    return value;
-  };
 
   return (
     <div>
@@ -161,7 +146,7 @@ export default function Empresas({
               color: "var(--text-secondary)",
             }}
           >
-            <Building2Icon
+            <Building2
               size={48}
               style={{ color: "var(--text-muted)", marginBottom: "1rem" }}
             />
@@ -543,28 +528,3 @@ export default function Empresas({
   );
 }
 
-// Inline fallback icon to avoid import issues
-function Building2Icon({ size, style }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={style}
-    >
-      <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
-      <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
-      <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
-      <path d="M10 6h4" />
-      <path d="M10 10h4" />
-      <path d="M10 14h4" />
-      <path d="M10 18h4" />
-    </svg>
-  );
-}
