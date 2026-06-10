@@ -43,7 +43,11 @@ const upload = multer({
 });
 
 // Middleware
-app.use(cors());
+const corsOptions = {
+  origin: "http://localhost:5173",
+  optionsSuccessStatus: 200,
+};
+app.use(cors(corsOptions));
 app.use(express.json({ limit: "10mb" }));
 
 // Background Scheduler instance
@@ -157,11 +161,9 @@ app.post("/api/settings/test-cloud", (req, res) => {
   const { email, token } = req.body;
 
   if (!email || !token) {
-    return res
-      .status(400)
-      .json({
-        error: "E-mail e Token de Integração são obrigatórios para o teste.",
-      });
+    return res.status(400).json({
+      error: "E-mail e Token de Integração são obrigatórios para o teste.",
+    });
   }
 
   // Simulate a real API handshake with Alterdata NF-Stock Cloud
@@ -301,11 +303,9 @@ app.post("/api/invoices/upload", upload.array("xmlFiles"), async (req, res) => {
 
   const companies = dbService.getCompanies();
   if (companies.length === 0) {
-    return res
-      .status(400)
-      .json({
-        error: "Cadastre pelo menos uma empresa antes de importar XMLs.",
-      });
+    return res.status(400).json({
+      error: "Cadastre pelo menos uma empresa antes de importar XMLs.",
+    });
   }
 
   const results = {
@@ -490,11 +490,13 @@ app.delete("/api/tasks/:id", (req, res) => {
 });
 
 // Start application
-app.listen(PORT, () => {
-  console.log(`[Facilita Contábil] Servidor rodando na porta ${PORT}`);
+app.listen(PORT, "127.0.0.1", () => {
+  console.log(
+    `[Facilita Contábil] Servidor rodando em http://127.0.0.1:${PORT}`,
+  );
   dbService.addLog(
     "info",
-    "Servidor inicializado e escutando na porta " + PORT,
+    "Servidor inicializado e escutando localmente na porta " + PORT,
   );
 
   // Start background monitoring scheduler

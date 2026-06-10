@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import crypto from "crypto";
+import "dotenv/config";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +27,39 @@ const DEFAULT_DB = {
   tasks: [],
 };
 
+const ALGORITHM = "aes-256-cbc";
+const ENCRYPTION_KEY = crypto.scryptSync(
+  process.env.ENCRYPTION_KEY || "facilita-contabil-secreta-key-9988",
+  "salt-key-salgada",
+  32,
+);
+
+function encrypt(text) {
+  if (!text) return "";
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
+  let encrypted = cipher.update(text, "utf8", "hex");
+  encrypted += cipher.final("hex");
+  return iv.toString("hex") + ":" + encrypted;
+}
+
+function decrypt(text) {
+  if (!text) return "";
+  if (!text.includes(":")) return text;
+  try {
+    const parts = text.split(":");
+    const iv = Buffer.from(parts.shift(), "hex");
+    const encryptedText = Buffer.from(parts.join(":"), "hex");
+    const decipher = crypto.createDecipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
+    let decrypted = decipher.update(encryptedText, "hex", "utf8");
+    decrypted += decipher.final("utf8");
+    return decrypted;
+  } catch (err) {
+    console.error("Erro ao descriptografar token:", err);
+    return text;
+  }
+}
+
 // Check and load/create database
 function loadDb() {
   try {
@@ -35,6 +70,12 @@ function loadDb() {
     const data = fs.readFileSync(DB_PATH, "utf8");
     const parsed = JSON.parse(data);
     if (!parsed.tasks) parsed.tasks = [];
+
+    // Decrypt token on load
+    if (parsed.settings && parsed.settings.nfStockToken) {
+      parsed.settings.nfStockToken = decrypt(parsed.settings.nfStockToken);
+    }
+
     return parsed;
   } catch (error) {
     console.error("Erro ao ler banco de dados JSON:", error);
@@ -44,7 +85,12 @@ function loadDb() {
 
 function saveDb(data) {
   try {
-    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), "utf8");
+    // Clone DB to prevent encrypting in-memory database object
+    const clone = JSON.parse(JSON.stringify(data));
+    if (clone.settings && clone.settings.nfStockToken) {
+      clone.settings.nfStockToken = encrypt(clone.settings.nfStockToken);
+    }
+    fs.writeFileSync(DB_PATH, JSON.stringify(clone, null, 2), "utf8");
   } catch (error) {
     console.error("Erro ao salvar banco de dados JSON:", error);
   }
