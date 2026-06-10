@@ -1,23 +1,26 @@
-import fs from 'fs';
-import path from 'path';
-import crypto from 'crypto';
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
 
 // Helper to generate a random 44-digit SEFAZ access key (Chave de Acesso)
 // Format: UF(2) + AAMM(4) + CNPJ(14) + mod(2) + serie(3) + numero(9) + tpEmis(1) + cNF(8) + cDV(1)
 function generateChaveAcesso(cnpj, type, dateStr) {
-  const uf = '35'; // SP
+  const uf = "35"; // SP
   const date = new Date(dateStr);
   const yy = String(date.getFullYear()).slice(-2);
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const cleanCnpj = cnpj.replace(/\D/g, '').padStart(14, '0');
-  const mod = '55'; // NF-e
-  const serie = '001';
-  const numero = String(Math.floor(Math.random() * 999999) + 1).padStart(9, '0');
-  const tpEmis = '1'; // Normal
-  const cNF = String(Math.floor(Math.random() * 99999999)).padStart(8, '0');
-  
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const cleanCnpj = cnpj.replace(/\D/g, "").padStart(14, "0");
+  const mod = "55"; // NF-e
+  const serie = "001";
+  const numero = String(Math.floor(Math.random() * 999999) + 1).padStart(
+    9,
+    "0",
+  );
+  const tpEmis = "1"; // Normal
+  const cNF = String(Math.floor(Math.random() * 99999999)).padStart(8, "0");
+
   const keyWithoutDv = `${uf}${yy}${mm}${cleanCnpj}${mod}${serie}${numero}${tpEmis}${cNF}`;
-  
+
   // Calculate modulo 11 check digit (DV)
   let sum = 0;
   let weight = 2;
@@ -27,7 +30,7 @@ function generateChaveAcesso(cnpj, type, dateStr) {
   }
   const remainder = sum % 11;
   const dv = remainder < 2 ? 0 : 11 - remainder;
-  
+
   return `${keyWithoutDv}${dv}`;
 }
 
@@ -46,17 +49,19 @@ function generateNFeXml(data) {
     vProd,
     vNF,
     vICMS,
-    items = []
+    items = [],
   } = data;
 
-  const itemsXml = items.map((item, index) => `
+  const itemsXml = items
+    .map(
+      (item, index) => `
     <det nItem="${index + 1}">
       <prod>
-        <cProd>${String(item.code || 100 + index).padStart(5, '0')}</cProd>
+        <cProd>${String(item.code || 100 + index).padStart(5, "0")}</cProd>
         <cEAN>SEM GTIN</cEAN>
         <xProd>${item.name}</xProd>
-        <NCM>${item.ncm || '21069090'}</NCM>
-        <CFOP>${item.cfop || '5102'}</CFOP>
+        <NCM>${item.ncm || "21069090"}</NCM>
+        <CFOP>${item.cfop || "5102"}</CFOP>
         <uCom>UN</uCom>
         <qCom>${item.qty.toFixed(4)}</qCom>
         <vUnCom>${item.price.toFixed(10)}</vUnCom>
@@ -97,7 +102,9 @@ function generateNFeXml(data) {
         </COFINS>
       </imposto>
     </det>
-  `).join('');
+  `,
+    )
+    .join("");
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
@@ -125,7 +132,7 @@ function generateNFeXml(data) {
         <verProc>FacilitaContabil_v1.0</verProc>
       </ide>
       <emit>
-        <CNPJ>${emitCnpj.replace(/\D/g, '')}</CNPJ>
+        <CNPJ>${emitCnpj.replace(/\D/g, "")}</CNPJ>
         <xNome>${emitName}</xNome>
         <enderEmit>
           <xLgr>Avenida Paulista</xLgr>
@@ -138,11 +145,11 @@ function generateNFeXml(data) {
           <cPais>1058</cPais>
           <xPais>BRASIL</xPais>
         </enderEmit>
-        <IE>${emitIE || '111222333444'}</IE>
+        <IE>${emitIE || "111222333444"}</IE>
         <CRT>3</CRT>
       </emit>
       <dest>
-        <CNPJ>${destCnpj.replace(/\D/g, '')}</CNPJ>
+        <CNPJ>${destCnpj.replace(/\D/g, "")}</CNPJ>
         <xNome>${destName}</xNome>
         <enderDest>
           <xLgr>Rua Oscar Freire</xLgr>
@@ -156,7 +163,7 @@ function generateNFeXml(data) {
           <xPais>BRASIL</xPais>
         </enderDest>
         <indIEDest>9</indIEDest>
-        <IE>${destIE || ''}</IE>
+        <IE>${destIE || ""}</IE>
       </dest>
       ${itemsXml}
       <total>
@@ -213,35 +220,134 @@ function generateNFeXml(data) {
 
 // Simulated data pools for dynamic invoice generation
 const MOCK_PARTNERS = [
-  { cnpj: '08.238.072/0001-90', name: 'Distribuidora de Alimentos Vale Verde Ltda', ie: '111444777111' },
-  { cnpj: '43.208.571/0001-32', name: 'Supermercados Pão e Leite S/A', ie: '222555888222' },
-  { cnpj: '59.102.392/0001-09', name: 'Fornecedor de Bebidas Nacional S.A.', ie: '333666999333' },
-  { cnpj: '10.590.284/0001-44', name: 'Embalagens São Paulo Eireli', ie: '444777000444' },
-  { cnpj: '02.408.591/0002-88', name: 'Panificadora Central e Doceria EPP', ie: '555888111555' },
-  { cnpj: '18.490.201/0001-50', name: 'Restaurante Sabor das Laranjas', ie: '666999222666' },
-  { cnpj: '22.339.408/0001-12', name: 'Hortifruti da Terra S.A.', ie: '777000333777' },
-  { cnpj: '05.908.102/0001-77', name: 'Logística Rápida Brasil Ltda', ie: '888111444888' }
+  {
+    cnpj: "08.238.072/0001-90",
+    name: "Distribuidora de Alimentos Vale Verde Ltda",
+    ie: "111444777111",
+  },
+  {
+    cnpj: "43.208.571/0001-32",
+    name: "Supermercados Pão e Leite S/A",
+    ie: "222555888222",
+  },
+  {
+    cnpj: "59.102.392/0001-09",
+    name: "Fornecedor de Bebidas Nacional S.A.",
+    ie: "333666999333",
+  },
+  {
+    cnpj: "10.590.284/0001-44",
+    name: "Embalagens São Paulo Eireli",
+    ie: "444777000444",
+  },
+  {
+    cnpj: "02.408.591/0002-88",
+    name: "Panificadora Central e Doceria EPP",
+    ie: "555888111555",
+  },
+  {
+    cnpj: "18.490.201/0001-50",
+    name: "Restaurante Sabor das Laranjas",
+    ie: "666999222666",
+  },
+  {
+    cnpj: "22.339.408/0001-12",
+    name: "Hortifruti da Terra S.A.",
+    ie: "777000333777",
+  },
+  {
+    cnpj: "05.908.102/0001-77",
+    name: "Logística Rápida Brasil Ltda",
+    ie: "888111444888",
+  },
 ];
 
 const MOCK_PRODUCTS = [
-  { name: 'Refrigerante Cola 2L Fardo c/ 6', price: 42.90, ncm: '22021000', cfop_inside: '5405', cfop_outside: '6405' },
-  { name: 'Arroz Agulha Tipo 1 5kg pct', price: 29.90, ncm: '10063011', cfop_inside: '5102', cfop_outside: '6102' },
-  { name: 'Feijão Carioca Extra 1kg', price: 8.50, ncm: '07133319', cfop_inside: '5102', cfop_outside: '6102' },
-  { name: 'Óleo de Soja Pet 900ml', price: 6.80, ncm: '15079011', cfop_inside: '5102', cfop_outside: '6102' },
-  { name: 'Açúcar Refinado Especial 5kg', price: 18.90, ncm: '17019900', cfop_inside: '5102', cfop_outside: '6102' },
-  { name: 'Leite UHT Integral Caixeta 1L', price: 4.89, ncm: '04012010', cfop_inside: '5102', cfop_outside: '6102' },
-  { name: 'Café Torrado e Moído Vácuo 500g', price: 19.50, ncm: '09012100', cfop_inside: '5102', cfop_outside: '6102' },
-  { name: 'Detergente Líquido Neutro 500ml', price: 2.30, ncm: '34022000', cfop_inside: '5102', cfop_outside: '6102' },
-  { name: 'Sabão em Pó Multiação 1.6kg', price: 17.80, ncm: '34022000', cfop_inside: '5102', cfop_outside: '6102' },
-  { name: 'Papel Higiênico Folha Dupla pct c/ 12', price: 15.90, ncm: '48181000', cfop_inside: '5102', cfop_outside: '6102' }
+  {
+    name: "Refrigerante Cola 2L Fardo c/ 6",
+    price: 42.9,
+    ncm: "22021000",
+    cfop_inside: "5405",
+    cfop_outside: "6405",
+  },
+  {
+    name: "Arroz Agulha Tipo 1 5kg pct",
+    price: 29.9,
+    ncm: "10063011",
+    cfop_inside: "5102",
+    cfop_outside: "6102",
+  },
+  {
+    name: "Feijão Carioca Extra 1kg",
+    price: 8.5,
+    ncm: "07133319",
+    cfop_inside: "5102",
+    cfop_outside: "6102",
+  },
+  {
+    name: "Óleo de Soja Pet 900ml",
+    price: 6.8,
+    ncm: "15079011",
+    cfop_inside: "5102",
+    cfop_outside: "6102",
+  },
+  {
+    name: "Açúcar Refinado Especial 5kg",
+    price: 18.9,
+    ncm: "17019900",
+    cfop_inside: "5102",
+    cfop_outside: "6102",
+  },
+  {
+    name: "Leite UHT Integral Caixeta 1L",
+    price: 4.89,
+    ncm: "04012010",
+    cfop_inside: "5102",
+    cfop_outside: "6102",
+  },
+  {
+    name: "Café Torrado e Moído Vácuo 500g",
+    price: 19.5,
+    ncm: "09012100",
+    cfop_inside: "5102",
+    cfop_outside: "6102",
+  },
+  {
+    name: "Detergente Líquido Neutro 500ml",
+    price: 2.3,
+    ncm: "34022000",
+    cfop_inside: "5102",
+    cfop_outside: "6102",
+  },
+  {
+    name: "Sabão em Pó Multiação 1.6kg",
+    price: 17.8,
+    ncm: "34022000",
+    cfop_inside: "5102",
+    cfop_outside: "6102",
+  },
+  {
+    name: "Papel Higiênico Folha Dupla pct c/ 12",
+    price: 15.9,
+    ncm: "48181000",
+    cfop_inside: "5102",
+    cfop_outside: "6102",
+  },
 ];
 
 // Generate an XML and return metadata for a simulated invoice
-export function generateMockInvoice(companyCnpj, companyName, type = 'entrada') {
-  const partner = MOCK_PARTNERS[Math.floor(Math.random() * MOCK_PARTNERS.length)];
-  const date = new Date(Date.now() - Math.floor(Math.random() * 10 * 24 * 60 * 60 * 1000)); // Last 10 days
-  const dhEmi = date.toISOString().split('.')[0] + '-03:00';
-  
+export function generateMockInvoice(
+  companyCnpj,
+  companyName,
+  type = "entrada",
+) {
+  const partner =
+    MOCK_PARTNERS[Math.floor(Math.random() * MOCK_PARTNERS.length)];
+  const date = new Date(
+    Date.now() - Math.floor(Math.random() * 10 * 24 * 60 * 60 * 1000),
+  ); // Last 10 days
+  const dhEmi = date.toISOString().split(".")[0] + "-03:00";
+
   const chave = generateChaveAcesso(companyCnpj, type, date);
   const nNF = String(Math.floor(Math.random() * 99999) + 1);
 
@@ -250,7 +356,8 @@ export function generateMockInvoice(companyCnpj, companyName, type = 'entrada') 
   const items = [];
   let vProd = 0;
   for (let i = 0; i < numItems; i++) {
-    const prodRef = MOCK_PRODUCTS[Math.floor(Math.random() * MOCK_PRODUCTS.length)];
+    const prodRef =
+      MOCK_PRODUCTS[Math.floor(Math.random() * MOCK_PRODUCTS.length)];
     const qty = Math.floor(Math.random() * 10) + 1;
     const price = prodRef.price * (0.9 + Math.random() * 0.2); // Add variation
     const total = qty * price;
@@ -262,20 +369,20 @@ export function generateMockInvoice(companyCnpj, companyName, type = 'entrada') 
       price,
       total,
       ncm: prodRef.ncm,
-      cfop: type === 'entrada' ? '1102' : prodRef.cfop_inside
+      cfop: type === "entrada" ? "1102" : prodRef.cfop_inside,
     });
   }
-  
+
   const vICMS = vProd * 0.18;
   const vNF = vProd;
 
-  const emitCnpj = type === 'entrada' ? partner.cnpj : companyCnpj;
-  const emitName = type === 'entrada' ? partner.name : companyName;
-  const emitIE = type === 'entrada' ? partner.ie : '110222333444';
+  const emitCnpj = type === "entrada" ? partner.cnpj : companyCnpj;
+  const emitName = type === "entrada" ? partner.name : companyName;
+  const emitIE = type === "entrada" ? partner.ie : "110222333444";
 
-  const destCnpj = type === 'entrada' ? companyCnpj : partner.cnpj;
-  const destName = type === 'entrada' ? companyName : partner.name;
-  const destIE = type === 'entrada' ? '110222333444' : partner.ie;
+  const destCnpj = type === "entrada" ? companyCnpj : partner.cnpj;
+  const destName = type === "entrada" ? companyName : partner.name;
+  const destIE = type === "entrada" ? "110222333444" : partner.ie;
 
   const data = {
     chave,
@@ -290,7 +397,7 @@ export function generateMockInvoice(companyCnpj, companyName, type = 'entrada') 
     vProd,
     vNF,
     vICMS,
-    items
+    items,
   };
 
   const xmlContent = generateNFeXml(data);
@@ -306,93 +413,146 @@ export function generateMockInvoice(companyCnpj, companyName, type = 'entrada') 
     recipientName: destName,
     recipientCnpj: destCnpj,
     xmlContent,
-    syncStatus: 'pending'
+    syncStatus: "pending",
   };
 }
 
 // Read XML file contents and extract fields via Regex (extremely fast and doesn't crash on slightly malformed inputs)
 export function parseNFeXml(xmlText) {
   try {
-    const isNfse = xmlText.includes('<Nfse') || xmlText.includes('<tcNfse') || xmlText.includes('<Valores>') || xmlText.includes('<Prestador') || xmlText.includes('<CompNfse');
+    const isNfse =
+      xmlText.includes("<Nfse") ||
+      xmlText.includes("<tcNfse") ||
+      xmlText.includes("<Valores>") ||
+      xmlText.includes("<Prestador") ||
+      xmlText.includes("<CompNfse");
 
     const getTagVal = (tag, text) => {
-      const regex = new RegExp(`<(\\w+:)?${tag}(\\s+[^>]*)?>([^<]+)<\\/(\\w+:)?${tag}>`, 'i');
+      const regex = new RegExp(
+        `<(\\w+:)?${tag}(\\s+[^>]*)?>([^<]+)<\\/(\\w+:)?${tag}>`,
+        "i",
+      );
       const match = text.match(regex);
-      return match ? match[3].trim() : '';
+      return match ? match[3].trim() : "";
     };
 
     const getInnerTag = (tag, text) => {
-      const regex = new RegExp(`<(\\w+:)?${tag}(\\s+[^>]*)?>([\\s\\S]*?)<\\/(\\w+:)?${tag}>`, 'i');
+      const regex = new RegExp(
+        `<(\\w+:)?${tag}(\\s+[^>]*)?>([\\s\\S]*?)<\\/(\\w+:)?${tag}>`,
+        "i",
+      );
       const match = text.match(regex);
-      return match ? match[3] : '';
+      return match ? match[3] : "";
     };
 
     if (isNfse) {
       // It's a Service Invoice (NFS-e)
-      const numero = getTagVal('Numero', xmlText) || getTagVal('nDFS', xmlText) || Math.floor(Math.random() * 99999);
-      
-      const prestadorText = getInnerTag('PrestadorServico', xmlText) || getInnerTag('Prestador', xmlText) || xmlText;
-      const issuerCnpj = getTagVal('CNPJ', prestadorText) || getTagVal('Cnpj', prestadorText) || getTagVal('CNPJPrestador', xmlText);
-      const issuerName = getTagVal('RazaoSocial', prestadorText) || getTagVal('xNome', prestadorText) || getTagVal('xNomePrestador', xmlText);
+      const numero =
+        getTagVal("Numero", xmlText) ||
+        getTagVal("nDFS", xmlText) ||
+        Math.floor(Math.random() * 99999);
 
-      const tomadorText = getInnerTag('TomadorServico', xmlText) || getInnerTag('Tomador', xmlText) || xmlText;
-      const recipientCnpj = getTagVal('CNPJ', tomadorText) || getTagVal('Cnpj', tomadorText) || getTagVal('CNPJTomador', xmlText);
-      const recipientName = getTagVal('RazaoSocial', tomadorText) || getTagVal('xNome', tomadorText) || getTagVal('xNomeTomador', xmlText);
+      const prestadorText =
+        getInnerTag("PrestadorServico", xmlText) ||
+        getInnerTag("Prestador", xmlText) ||
+        xmlText;
+      const issuerCnpj =
+        getTagVal("CNPJ", prestadorText) ||
+        getTagVal("Cnpj", prestadorText) ||
+        getTagVal("CNPJPrestador", xmlText);
+      const issuerName =
+        getTagVal("RazaoSocial", prestadorText) ||
+        getTagVal("xNome", prestadorText) ||
+        getTagVal("xNomePrestador", xmlText);
 
-      const vServVal = getTagVal('ValorServicos', xmlText) || getTagVal('vServ', xmlText) || getTagVal('vNF', xmlText);
+      const tomadorText =
+        getInnerTag("TomadorServico", xmlText) ||
+        getInnerTag("Tomador", xmlText) ||
+        xmlText;
+      const recipientCnpj =
+        getTagVal("CNPJ", tomadorText) ||
+        getTagVal("Cnpj", tomadorText) ||
+        getTagVal("CNPJTomador", xmlText);
+      const recipientName =
+        getTagVal("RazaoSocial", tomadorText) ||
+        getTagVal("xNome", tomadorText) ||
+        getTagVal("xNomeTomador", xmlText);
+
+      const vServVal =
+        getTagVal("ValorServicos", xmlText) ||
+        getTagVal("vServ", xmlText) ||
+        getTagVal("vNF", xmlText);
       const value = vServVal ? parseFloat(vServVal) : 0;
 
-      const dhEmiRaw = getTagVal('DataEmissao', xmlText) || getTagVal('dhEmi', xmlText) || getTagVal('dEmi', xmlText);
-      const date = dhEmiRaw ? dhEmiRaw.substring(0, 10) : new Date().toISOString().substring(0, 10);
+      const dhEmiRaw =
+        getTagVal("DataEmissao", xmlText) ||
+        getTagVal("dhEmi", xmlText) ||
+        getTagVal("dEmi", xmlText);
+      const date = dhEmiRaw
+        ? dhEmiRaw.substring(0, 10)
+        : new Date().toISOString().substring(0, 10);
 
       // Unique identifier for NFS-e
-      const cleanIssuerCnpj = issuerCnpj ? issuerCnpj.replace(/\D/g, '') : '00000000000000';
-      const chave = `NFSE${cleanIssuerCnpj.padStart(14, '0')}${String(numero).padStart(9, '0')}`.padEnd(44, '0');
+      const cleanIssuerCnpj = issuerCnpj
+        ? issuerCnpj.replace(/\D/g, "")
+        : "00000000000000";
+      const chave =
+        `NFSE${cleanIssuerCnpj.padStart(14, "0")}${String(numero).padStart(9, "0")}`.padEnd(
+          44,
+          "0",
+        );
 
       return {
         chave,
         date,
         issuerCnpj: formatCnpjCpf(issuerCnpj),
-        issuerName: issuerName || 'Prestador de Serviço',
+        issuerName: issuerName || "Prestador de Serviço",
         recipientCnpj: formatCnpjCpf(recipientCnpj),
-        recipientName: recipientName || 'Tomador de Serviço',
+        recipientName: recipientName || "Tomador de Serviço",
         value,
-        xmlContent: xmlText
+        xmlContent: xmlText,
       };
     }
 
     // Extract Chave de Acesso from Id="NFe352..." or infProt/chNFe
-    let chave = '';
-    const chMatch = xmlText.match(/<(\w+:)?chNFe>([^<]+)<\/(\w+:)?chNFe>/i) || xmlText.match(/<(\w+:)?infNFe\s+[^>]*Id="NFe(\d{44})"/i);
+    let chave = "";
+    const chMatch =
+      xmlText.match(/<(\w+:)?chNFe>([^<]+)<\/(\w+:)?chNFe>/i) ||
+      xmlText.match(/<(\w+:)?infNFe\s+[^>]*Id="NFe(\d{44})"/i);
     if (chMatch) {
       chave = chMatch[2];
     } else {
-      const fallbackMatch = xmlText.match(/chNFe>(\d{44})</i) || xmlText.match(/Id="NFe(\d{44})"/i);
+      const fallbackMatch =
+        xmlText.match(/chNFe>(\d{44})</i) || xmlText.match(/Id="NFe(\d{44})"/i);
       if (fallbackMatch) {
         chave = fallbackMatch[1];
       }
     }
 
     if (!chave) {
-      throw new Error('Chave de Acesso não encontrada no XML');
+      throw new Error("Chave de Acesso não encontrada no XML");
     }
 
-    const nNF = getTagVal('nNF', xmlText);
-    const dhEmiRaw = getTagVal('dhEmi', xmlText) || getTagVal('dEmi', xmlText);
-    const date = dhEmiRaw ? dhEmiRaw.substring(0, 10) : new Date().toISOString().substring(0, 10);
+    const nNF = getTagVal("nNF", xmlText);
+    const dhEmiRaw = getTagVal("dhEmi", xmlText) || getTagVal("dEmi", xmlText);
+    const date = dhEmiRaw
+      ? dhEmiRaw.substring(0, 10)
+      : new Date().toISOString().substring(0, 10);
 
     // Extract Emitente
-    const emitText = getInnerTag('emit', xmlText);
-    const issuerCnpj = getTagVal('CNPJ', emitText) || getTagVal('CPF', emitText);
-    const issuerName = getTagVal('xNome', emitText);
+    const emitText = getInnerTag("emit", xmlText);
+    const issuerCnpj =
+      getTagVal("CNPJ", emitText) || getTagVal("CPF", emitText);
+    const issuerName = getTagVal("xNome", emitText);
 
     // Extract Destinatário
-    const destText = getInnerTag('dest', xmlText);
-    const recipientCnpj = getTagVal('CNPJ', destText) || getTagVal('CPF', destText);
-    const recipientName = getTagVal('xNome', destText);
+    const destText = getInnerTag("dest", xmlText);
+    const recipientCnpj =
+      getTagVal("CNPJ", destText) || getTagVal("CPF", destText);
+    const recipientName = getTagVal("xNome", destText);
 
     // Total Value
-    const vNFVal = getTagVal('vNF', xmlText);
+    const vNFVal = getTagVal("vNF", xmlText);
     const value = vNFVal ? parseFloat(vNFVal) : 0;
 
     return {
@@ -403,20 +563,23 @@ export function parseNFeXml(xmlText) {
       recipientCnpj: formatCnpjCpf(recipientCnpj),
       recipientName,
       value,
-      xmlContent: xmlText
+      xmlContent: xmlText,
     };
   } catch (error) {
-    console.error('Erro ao fazer parse do XML:', error);
-    throw new Error('Formato XML de Nota Fiscal inválido: ' + error.message);
+    console.error("Erro ao fazer parse do XML:", error);
+    throw new Error("Formato XML de Nota Fiscal inválido: " + error.message);
   }
 }
 
-function formatCnpjCpf(value = '') {
-  const clean = value.replace(/\D/g, '');
+function formatCnpjCpf(value = "") {
+  const clean = value.replace(/\D/g, "");
   if (clean.length === 11) {
-    return clean.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    return clean.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
   } else if (clean.length === 14) {
-    return clean.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+    return clean.replace(
+      /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
+      "$1.$2.$3/$4-$5",
+    );
   }
   return value;
 }
@@ -427,37 +590,44 @@ export async function fetchSefazInvoices(company, limit = 5) {
   // In a real production setup, we would load the PFX file from `uploads/certificates/<CNPJ>.pfx`,
   // authenticate with password, connect to the national SEFAZ endpoint using soap-client or https agent,
   // query for new NSUs, and parse the resulting Gzipped XML documents.
-  
+
   const fetched = [];
-  
+
   // Randomly decide number of new notes to pull (0 to limit)
   const count = Math.floor(Math.random() * (limit + 1));
-  
+
   for (let i = 0; i < count; i++) {
     // Generate both entry and exit notes
-    const type = Math.random() > 0.4 ? 'entrada' : 'saida';
-    const invoice = generateMockInvoice(company.cnpj, company.razaoSocial, type);
+    const type = Math.random() > 0.4 ? "entrada" : "saida";
+    const invoice = generateMockInvoice(
+      company.cnpj,
+      company.razaoSocial,
+      type,
+    );
     fetched.push(invoice);
   }
-  
+
   return fetched;
 }
 
 export function generateDanfeHtml(invoice) {
   const formatCurrency = (val) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(val);
   };
-  
+
   const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    const parts = dateStr.split('-');
+    if (!dateStr) return "";
+    const parts = dateStr.split("-");
     if (parts.length === 3) {
       return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
     return dateStr;
   };
-  
-  const cleanKey = invoice.chave.replace(/(.{4})/g, '$1 ');
+
+  const cleanKey = invoice.chave.replace(/(.{4})/g, "$1 ");
 
   // Parse items from XML
   const items = [];
@@ -474,16 +644,18 @@ export function generateDanfeHtml(invoice) {
 
     items.push({
       nItem: match[1],
-      name: nameMatch ? nameMatch[1] : 'Produto Desconhecido',
+      name: nameMatch ? nameMatch[1] : "Produto Desconhecido",
       qty: qtyMatch ? parseFloat(qtyMatch[1]) : 0,
       price: priceMatch ? parseFloat(priceMatch[1]) : 0,
       total: totalMatch ? parseFloat(totalMatch[1]) : 0,
-      ncm: ncmMatch ? ncmMatch[1] : '',
-      cfop: cfopMatch ? cfopMatch[1] : ''
+      ncm: ncmMatch ? ncmMatch[1] : "",
+      cfop: cfopMatch ? cfopMatch[1] : "",
     });
   }
 
-  const itemsRows = items.map(item => `
+  const itemsRows = items
+    .map(
+      (item) => `
     <tr>
       <td style="border: 1px solid #000; text-align: center; padding: 4px;">${item.nItem}</td>
       <td style="border: 1px solid #000; padding: 4px;">${100 + parseInt(item.nItem)}</td>
@@ -494,7 +666,9 @@ export function generateDanfeHtml(invoice) {
       <td style="border: 1px solid #000; text-align: right; padding: 4px;">${formatCurrency(item.price)}</td>
       <td style="border: 1px solid #000; text-align: right; padding: 4px; font-weight: bold;">${formatCurrency(item.total)}</td>
     </tr>
-  `).join('');
+  `,
+    )
+    .join("");
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">

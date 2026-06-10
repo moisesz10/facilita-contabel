@@ -1,27 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Building2, 
-  FileText, 
-  UploadCloud, 
-  Settings, 
+import React, { useState, useEffect } from "react";
+import {
+  Building2,
+  FileText,
+  UploadCloud,
+  Settings,
   LayoutDashboard,
   Server,
   CloudLightning,
   AlertTriangle,
-  ClipboardList
-} from 'lucide-react';
+  ClipboardList,
+} from "lucide-react";
 
-import Dashboard from './components/Dashboard';
-import Empresas from './components/Empresas';
-import NotasFiscais from './components/NotasFiscais';
-import UploadXML from './components/UploadXML';
-import Configuracoes from './components/Configuracoes';
-import Tarefas from './components/Tarefas';
+import Dashboard from "./components/Dashboard";
+import Empresas from "./components/Empresas";
+import NotasFiscais from "./components/NotasFiscais";
+import UploadXML from "./components/UploadXML";
+import Configuracoes from "./components/Configuracoes";
+import Tarefas from "./components/Tarefas";
 
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = "http://localhost:3001/api";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [companies, setCompanies] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [logs, setLogs] = useState([]);
@@ -29,17 +29,17 @@ export default function App() {
   const [settings, setSettings] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState("");
 
   const fetchAllData = async () => {
     try {
-      setErrorMsg('');
+      setErrorMsg("");
       const [compRes, invRes, logsRes, setRes, tasksRes] = await Promise.all([
         fetch(`${API_BASE}/companies`),
         fetch(`${API_BASE}/invoices`),
         fetch(`${API_BASE}/logs`),
         fetch(`${API_BASE}/settings`),
-        fetch(`${API_BASE}/tasks`)
+        fetch(`${API_BASE}/tasks`),
       ]);
 
       if (compRes.ok && invRes.ok && logsRes.ok && setRes.ok && tasksRes.ok) {
@@ -56,12 +56,14 @@ export default function App() {
         setTasks(tasksData);
         setIsConnected(true);
       } else {
-        throw new Error('Falha ao obter dados do servidor.');
+        throw new Error("Falha ao obter dados do servidor.");
       }
     } catch (err) {
       console.error(err);
       setIsConnected(false);
-      setErrorMsg('Não foi possível conectar ao servidor local. Certifique-se de que o backend está rodando na porta 3001.');
+      setErrorMsg(
+        "Não foi possível conectar ao servidor local. Certifique-se de que o backend está rodando na porta 3001.",
+      );
     }
   };
 
@@ -70,9 +72,18 @@ export default function App() {
     // Poll logs, invoice and task updates every 5 seconds to keep dashboard live
     const pollInterval = setInterval(() => {
       if (isConnected) {
-        fetch(`${API_BASE}/invoices`).then(res => res.json()).then(setInvoices).catch(console.error);
-        fetch(`${API_BASE}/logs`).then(res => res.json()).then(setLogs).catch(console.error);
-        fetch(`${API_BASE}/tasks`).then(res => res.json()).then(setTasks).catch(console.error);
+        fetch(`${API_BASE}/invoices`)
+          .then((res) => res.json())
+          .then(setInvoices)
+          .catch(console.error);
+        fetch(`${API_BASE}/logs`)
+          .then((res) => res.json())
+          .then(setLogs)
+          .catch(console.error);
+        fetch(`${API_BASE}/tasks`)
+          .then((res) => res.json())
+          .then(setTasks)
+          .catch(console.error);
       }
     }, 5000);
 
@@ -82,19 +93,19 @@ export default function App() {
   const handleAddCompany = async (formData) => {
     try {
       const res = await fetch(`${API_BASE}/companies`, {
-        method: 'POST',
-        body: formData // multipart/form-data
+        method: "POST",
+        body: formData, // multipart/form-data
       });
       if (res.ok) {
         await fetchAllData();
         return true;
       } else {
         const err = await res.json();
-        alert(`Erro ao salvar empresa: ${err.error || 'Erro desconhecido'}`);
+        alert(`Erro ao salvar empresa: ${err.error || "Erro desconhecido"}`);
         return false;
       }
     } catch (err) {
-      alert('Erro de conexão ao salvar empresa.');
+      alert("Erro de conexão ao salvar empresa.");
       return false;
     }
   };
@@ -102,58 +113,58 @@ export default function App() {
   const handleDeleteCompany = async (cnpj) => {
     try {
       const res = await fetch(`${API_BASE}/companies/${cnpj}`, {
-        method: 'DELETE'
+        method: "DELETE",
       });
       if (res.ok) {
         await fetchAllData();
       } else {
-        alert('Erro ao excluir empresa.');
+        alert("Erro ao excluir empresa.");
       }
     } catch (err) {
-      alert('Erro de conexão ao excluir empresa.');
+      alert("Erro de conexão ao excluir empresa.");
     }
   };
 
   const handleAddTask = async (taskData) => {
     try {
       const res = await fetch(`${API_BASE}/tasks`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(taskData)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(taskData),
       });
       if (res.ok) {
         await fetchAllData();
       }
     } catch (err) {
-      alert('Erro de conexão ao salvar obrigação.');
+      alert("Erro de conexão ao salvar obrigação.");
     }
   };
 
   const handleToggleTask = async (id, status) => {
     try {
       const res = await fetch(`${API_BASE}/tasks/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
       });
       if (res.ok) {
         await fetchAllData();
       }
     } catch (err) {
-      alert('Erro de conexão ao atualizar tarefa.');
+      alert("Erro de conexão ao atualizar tarefa.");
     }
   };
 
   const handleDeleteTask = async (id) => {
     try {
       const res = await fetch(`${API_BASE}/tasks/${id}`, {
-        method: 'DELETE'
+        method: "DELETE",
       });
       if (res.ok) {
         await fetchAllData();
       }
     } catch (err) {
-      alert('Erro de conexão ao remover tarefa.');
+      alert("Erro de conexão ao remover tarefa.");
     }
   };
 
@@ -161,22 +172,24 @@ export default function App() {
     setIsScanning(true);
     try {
       const res = await fetch(`${API_BASE}/sefaz/fetch/${cnpj}`, {
-        method: 'POST'
+        method: "POST",
       });
       if (res.ok) {
         const data = await res.json();
         await fetchAllData();
         if (data.count > 0) {
-          alert(`Sucesso! Encontradas ${data.count} novas notas e enviadas ao Alterdata.`);
+          alert(
+            `Sucesso! Encontradas ${data.count} novas notas e enviadas ao Alterdata.`,
+          );
         } else {
-          alert('Consulta concluída. Nenhuma nova nota fiscal disponível.');
+          alert("Consulta concluída. Nenhuma nova nota fiscal disponível.");
         }
       } else {
         const err = await res.json();
-        alert(`Erro na busca SEFAZ: ${err.error || 'Erro interno'}`);
+        alert(`Erro na busca SEFAZ: ${err.error || "Erro interno"}`);
       }
     } catch (err) {
-      alert('Erro de conexão ao consultar SEFAZ.');
+      alert("Erro de conexão ao consultar SEFAZ.");
     } finally {
       setIsScanning(false);
     }
@@ -186,9 +199,11 @@ export default function App() {
     setIsScanning(true);
     let totalCount = 0;
     try {
-      for (const comp of companies.filter(c => c.activeSync && (c.certValid || settings?.isSefazSimulation))) {
+      for (const comp of companies.filter(
+        (c) => c.activeSync && (c.certValid || settings?.isSefazSimulation),
+      )) {
         const res = await fetch(`${API_BASE}/sefaz/fetch/${comp.cnpj}`, {
-          method: 'POST'
+          method: "POST",
         });
         if (res.ok) {
           const data = await res.json();
@@ -196,9 +211,11 @@ export default function App() {
         }
       }
       await fetchAllData();
-      alert(`Varredura completa concluída! Total de novas notas importadas: ${totalCount}`);
+      alert(
+        `Varredura completa concluída! Total de novas notas importadas: ${totalCount}`,
+      );
     } catch (err) {
-      alert('Erro durante a varredura automática em lote.');
+      alert("Erro durante a varredura automática em lote.");
     } finally {
       setIsScanning(false);
     }
@@ -207,29 +224,31 @@ export default function App() {
   const handleSyncInvoice = async (chave) => {
     try {
       const res = await fetch(`${API_BASE}/invoices/sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chave })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chave }),
       });
       if (res.ok) {
         const data = await res.json();
         await fetchAllData();
         if (data.success) {
-          alert('Nota sincronizada e exportada para o Alterdata com sucesso!');
+          alert("Nota sincronizada e exportada para o Alterdata com sucesso!");
         } else {
-          alert('A exportação falhou. Verifique se o diretório do Alterdata está configurado corretamente.');
+          alert(
+            "A exportação falhou. Verifique se o diretório do Alterdata está configurado corretamente.",
+          );
         }
       }
     } catch (err) {
-      alert('Erro de conexão ao sincronizar nota.');
+      alert("Erro de conexão ao sincronizar nota.");
     }
   };
 
   const handleUploadXmls = async (formData) => {
     try {
       const res = await fetch(`${API_BASE}/invoices/upload`, {
-        method: 'POST',
-        body: formData
+        method: "POST",
+        body: formData,
       });
       if (res.ok) {
         const results = await res.json();
@@ -237,11 +256,11 @@ export default function App() {
         return results;
       } else {
         const err = await res.json();
-        alert(`Erro ao processar lote de XMLs: ${err.error || 'Erro interno'}`);
+        alert(`Erro ao processar lote de XMLs: ${err.error || "Erro interno"}`);
         return null;
       }
     } catch (err) {
-      alert('Erro de conexão ao enviar XMLs.');
+      alert("Erro de conexão ao enviar XMLs.");
       return null;
     }
   };
@@ -249,25 +268,25 @@ export default function App() {
   const handleSaveSettings = async (newSettings) => {
     try {
       const res = await fetch(`${API_BASE}/settings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newSettings)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newSettings),
       });
       if (res.ok) {
         await fetchAllData();
-        alert('Configurações salvas e aplicadas!');
+        alert("Configurações salvas e aplicadas!");
       } else {
-        alert('Erro ao salvar configurações.');
+        alert("Erro ao salvar configurações.");
       }
     } catch (err) {
-      alert('Erro de conexão ao salvar configurações.');
+      alert("Erro de conexão ao salvar configurações.");
     }
   };
 
   const handleClearLogs = async () => {
     try {
       const res = await fetch(`${API_BASE}/logs/clear`, {
-        method: 'POST'
+        method: "POST",
       });
       if (res.ok) {
         await fetchAllData();
@@ -280,11 +299,36 @@ export default function App() {
   const renderContent = () => {
     if (!isConnected) {
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', textAlign: 'center', padding: '2rem' }}>
-          <AlertTriangle size={64} style={{ color: 'var(--warning-light)', marginBottom: '1.5rem' }} />
-          <h2 style={{ fontFamily: 'var(--font-display)', marginBottom: '1rem' }}>Erro de Conexão com a API</h2>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: '500px', lineHeight: '1.6', marginBottom: '2rem' }}>
-            {errorMsg || 'Aguardando inicialização do servidor backend do Facilita Contábil...'}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "60vh",
+            textAlign: "center",
+            padding: "2rem",
+          }}
+        >
+          <AlertTriangle
+            size={64}
+            style={{ color: "var(--warning-light)", marginBottom: "1.5rem" }}
+          />
+          <h2
+            style={{ fontFamily: "var(--font-display)", marginBottom: "1rem" }}
+          >
+            Erro de Conexão com a API
+          </h2>
+          <p
+            style={{
+              color: "var(--text-secondary)",
+              maxWidth: "500px",
+              lineHeight: "1.6",
+              marginBottom: "2rem",
+            }}
+          >
+            {errorMsg ||
+              "Aguardando inicialização do servidor backend do Facilita Contábil..."}
           </p>
           <button className="btn btn-primary" onClick={fetchAllData}>
             <Server size={18} />
@@ -295,12 +339,12 @@ export default function App() {
     }
 
     switch (activeTab) {
-      case 'dashboard':
+      case "dashboard":
         return (
-          <Dashboard 
-            companies={companies} 
-            invoices={invoices} 
-            logs={logs} 
+          <Dashboard
+            companies={companies}
+            invoices={invoices}
+            logs={logs}
             tasks={tasks}
             settings={settings}
             onFetchAll={fetchAllData}
@@ -308,9 +352,9 @@ export default function App() {
             onScanAll={handleScanAll}
           />
         );
-      case 'companies':
+      case "companies":
         return (
-          <Empresas 
+          <Empresas
             companies={companies}
             onAddCompany={handleAddCompany}
             onDeleteCompany={handleDeleteCompany}
@@ -318,17 +362,17 @@ export default function App() {
             isScanning={isScanning}
           />
         );
-      case 'invoices':
+      case "invoices":
         return (
-          <NotasFiscais 
+          <NotasFiscais
             invoices={invoices}
             companies={companies}
             onSyncInvoice={handleSyncInvoice}
           />
         );
-      case 'tasks':
+      case "tasks":
         return (
-          <Tarefas 
+          <Tarefas
             tasks={tasks}
             companies={companies}
             onAddTask={handleAddTask}
@@ -336,16 +380,13 @@ export default function App() {
             onDeleteTask={handleDeleteTask}
           />
         );
-      case 'upload':
+      case "upload":
         return (
-          <UploadXML 
-            companies={companies}
-            onUploadXmls={handleUploadXmls}
-          />
+          <UploadXML companies={companies} onUploadXmls={handleUploadXmls} />
         );
-      case 'settings':
+      case "settings":
         return (
-          <Configuracoes 
+          <Configuracoes
             settings={settings}
             onSaveSettings={handleSaveSettings}
             onClearLogs={handleClearLogs}
@@ -362,58 +403,68 @@ export default function App() {
       <aside className="sidebar">
         <div className="brand-container">
           <div className="brand-icon">
-            <CloudLightning size={24} style={{ color: 'white' }} />
+            <CloudLightning size={24} style={{ color: "white" }} />
           </div>
           <div>
             <div className="brand-title">Facilita</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', letterSpacing: '0.05em', marginTop: '-2px' }}>CONTÁBIL</div>
+            <div
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--text-secondary)",
+                fontWeight: "600",
+                letterSpacing: "0.05em",
+                marginTop: "-2px",
+              }}
+            >
+              CONTÁBIL
+            </div>
           </div>
         </div>
 
         <nav className="nav-menu">
-          <div 
-            className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActiveTab('dashboard')}
+          <div
+            className={`nav-item ${activeTab === "dashboard" ? "active" : ""}`}
+            onClick={() => setActiveTab("dashboard")}
           >
             <LayoutDashboard className="nav-icon" />
             <span>Dashboard</span>
           </div>
 
-          <div 
-            className={`nav-item ${activeTab === 'companies' ? 'active' : ''}`}
-            onClick={() => setActiveTab('companies')}
+          <div
+            className={`nav-item ${activeTab === "companies" ? "active" : ""}`}
+            onClick={() => setActiveTab("companies")}
           >
             <Building2 className="nav-icon" />
             <span>Empresas</span>
           </div>
 
-          <div 
-            className={`nav-item ${activeTab === 'invoices' ? 'active' : ''}`}
-            onClick={() => setActiveTab('invoices')}
+          <div
+            className={`nav-item ${activeTab === "invoices" ? "active" : ""}`}
+            onClick={() => setActiveTab("invoices")}
           >
             <FileText className="nav-icon" />
             <span>Notas Fiscais</span>
           </div>
 
-          <div 
-            className={`nav-item ${activeTab === 'tasks' ? 'active' : ''}`}
-            onClick={() => setActiveTab('tasks')}
+          <div
+            className={`nav-item ${activeTab === "tasks" ? "active" : ""}`}
+            onClick={() => setActiveTab("tasks")}
           >
             <ClipboardList className="nav-icon" />
             <span>Tarefas Fiscais</span>
           </div>
 
-          <div 
-            className={`nav-item ${activeTab === 'upload' ? 'active' : ''}`}
-            onClick={() => setActiveTab('upload')}
+          <div
+            className={`nav-item ${activeTab === "upload" ? "active" : ""}`}
+            onClick={() => setActiveTab("upload")}
           >
             <UploadCloud className="nav-icon" />
             <span>Importar XML</span>
           </div>
 
-          <div 
-            className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => setActiveTab('settings')}
+          <div
+            className={`nav-item ${activeTab === "settings" ? "active" : ""}`}
+            onClick={() => setActiveTab("settings")}
           >
             <Settings className="nav-icon" />
             <span>Configurações</span>
@@ -422,19 +473,29 @@ export default function App() {
 
         <div className="sidebar-footer">
           <div className="server-status">
-            <div className={`status-dot ${isConnected ? 'active' : ''}`} style={{ backgroundColor: isConnected ? 'var(--success-light)' : 'var(--danger-light)', boxShadow: isConnected ? '0 0 8px var(--success-light)' : '0 0 8px var(--danger-light)' }} />
-            <span>{isConnected ? 'Servidor Conectado' : 'Servidor Offline'}</span>
+            <div
+              className={`status-dot ${isConnected ? "active" : ""}`}
+              style={{
+                backgroundColor: isConnected
+                  ? "var(--success-light)"
+                  : "var(--danger-light)",
+                boxShadow: isConnected
+                  ? "0 0 8px var(--success-light)"
+                  : "0 0 8px var(--danger-light)",
+              }}
+            />
+            <span>
+              {isConnected ? "Servidor Conectado" : "Servidor Offline"}
+            </span>
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
             v1.0.0 | Porta 3001
           </div>
         </div>
       </aside>
 
       {/* Main Content Pane */}
-      <main className="main-content">
-        {renderContent()}
-      </main>
+      <main className="main-content">{renderContent()}</main>
     </div>
   );
 }

@@ -1,13 +1,16 @@
-import express from 'express';
-import cors from 'cors';
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
+import express from "express";
+import cors from "cors";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 
-import { dbService } from './db.js';
-import { fetchSefazInvoices, parseNFeXml } from './sefazService.js';
-import { syncInvoiceToAlterdata, syncPendingInvoices } from './alterdataService.js';
+import { dbService } from "./db.js";
+import { fetchSefazInvoices, parseNFeXml } from "./sefazService.js";
+import {
+  syncInvoiceToAlterdata,
+  syncPendingInvoices,
+} from "./alterdataService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,7 +19,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Setup directories
-const UPLOADS_DIR = path.join(__dirname, 'uploads', 'certificates');
+const UPLOADS_DIR = path.join(__dirname, "uploads", "certificates");
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
@@ -28,41 +31,47 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     // Save as: CNPJ_certificateName.ext
-    const cnpj = req.body.cnpj ? req.body.cnpj.replace(/\D/g, '') : 'unknown';
+    const cnpj = req.body.cnpj ? req.body.cnpj.replace(/\D/g, "") : "unknown";
     const ext = path.extname(file.originalname);
     cb(null, `${cnpj}_cert${ext}`);
-  }
+  },
 });
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 });
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
 
 // Background Scheduler instance
 let schedulerIntervalId = null;
 
 function runAutoFetchJob() {
   const settings = dbService.getSettings();
-  const companies = dbService.getCompanies().filter(c => c.activeSync);
+  const companies = dbService.getCompanies().filter((c) => c.activeSync);
 
   if (companies.length === 0) {
-    dbService.addLog('info', 'Varredura automática: Nenhuma empresa ativa com consulta habilitada.');
+    dbService.addLog(
+      "info",
+      "Varredura automática: Nenhuma empresa ativa com consulta habilitada.",
+    );
     return;
   }
 
-  dbService.addLog('info', `Iniciando varredura automática para ${companies.length} empresas...`);
-  
+  dbService.addLog(
+    "info",
+    `Iniciando varredura automática para ${companies.length} empresas...`,
+  );
+
   companies.forEach(async (company) => {
     try {
       const fetchedInvoices = await fetchSefazInvoices(company, 3);
       if (fetchedInvoices.length > 0) {
         let newCount = 0;
-        fetchedInvoices.forEach(inv => {
+        fetchedInvoices.forEach((inv) => {
           const added = dbService.addInvoice(inv);
           if (added && added.createdAt === added.syncedAt) {
             // Already existed
@@ -73,12 +82,23 @@ function runAutoFetchJob() {
           }
         });
         if (newCount > 0) {
-          dbService.addLog('success', `Busca automática: ${newCount} novas notas encontradas e exportadas para ${company.razaoSocial}.`, company.cnpj);
+          dbService.addLog(
+            "success",
+            `Busca automática: ${newCount} novas notas encontradas e exportadas para ${company.razaoSocial}.`,
+            company.cnpj,
+          );
         }
       }
     } catch (err) {
-      console.error(`Erro na busca automática para a empresa ${company.cnpj}:`, err);
-      dbService.addLog('error', `Falha na busca automática: ${err.message}`, company.cnpj);
+      console.error(
+        `Erro na busca automática para a empresa ${company.cnpj}:`,
+        err,
+      );
+      dbService.addLog(
+        "error",
+        `Falha na busca automática: ${err.message}`,
+        company.cnpj,
+      );
     }
   });
 
@@ -91,7 +111,7 @@ function startScheduler() {
   }
   const settings = dbService.getSettings();
   const intervalMs = settings.autoSyncIntervalMinutes * 60 * 1000;
-  
+
   // Run once immediately on start
   setTimeout(runAutoFetchJob, 2000);
 
@@ -101,77 +121,89 @@ function startScheduler() {
 // REST ENDPOINTS
 
 // 1. Settings
-app.get('/api/settings', (req, res) => {
+app.get("/api/settings", (req, res) => {
   res.json(dbService.getSettings());
 });
 
-app.post('/api/settings', (req, res) => {
-  const { 
-    alterdataDir, 
-    autoSyncIntervalMinutes, 
+app.post("/api/settings", (req, res) => {
+  const {
+    alterdataDir,
+    autoSyncIntervalMinutes,
     isSefazSimulation,
     enableFolderSync,
     enableCloudSync,
     nfStockEmail,
-    nfStockToken
+    nfStockToken,
   } = req.body;
-  
+
   const updated = dbService.updateSettings({
     alterdataDir,
     autoSyncIntervalMinutes: Number(autoSyncIntervalMinutes),
     isSefazSimulation: !!isSefazSimulation,
     enableFolderSync: enableFolderSync ?? true,
     enableCloudSync: !!enableCloudSync,
-    nfStockEmail: nfStockEmail || '',
-    nfStockToken: nfStockToken || ''
+    nfStockEmail: nfStockEmail || "",
+    nfStockToken: nfStockToken || "",
   });
-  
+
   // Restart scheduler with new interval
   startScheduler();
-  dbService.addLog('info', 'Configurações de sincronização atualizadas.');
+  dbService.addLog("info", "Configurações de sincronização atualizadas.");
   res.json(updated);
 });
 
 // Test Alterdata NF-Stock Cloud connection
-app.post('/api/settings/test-cloud', (req, res) => {
+app.post("/api/settings/test-cloud", (req, res) => {
   const { email, token } = req.body;
 
   if (!email || !token) {
-    return res.status(400).json({ error: 'E-mail e Token de Integração são obrigatórios para o teste.' });
+    return res
+      .status(400)
+      .json({
+        error: "E-mail e Token de Integração são obrigatórios para o teste.",
+      });
   }
 
   // Simulate a real API handshake with Alterdata NF-Stock Cloud
   setTimeout(() => {
-    const isEmailValid = email.includes('@') && email.includes('.');
+    const isEmailValid = email.includes("@") && email.includes(".");
     const isTokenValid = token.length >= 8;
 
     if (isEmailValid && isTokenValid) {
-      dbService.addLog('success', `Teste de Conexão Cloud: Conectado com sucesso ao portal Alterdata NF-Stock para o e-mail ${email}.`);
-      return res.json({ success: true, message: 'Conectado com sucesso com a Nuvem Alterdata NF-Stock!' });
+      dbService.addLog(
+        "success",
+        `Teste de Conexão Cloud: Conectado com sucesso ao portal Alterdata NF-Stock para o e-mail ${email}.`,
+      );
+      return res.json({
+        success: true,
+        message: "Conectado com sucesso com a Nuvem Alterdata NF-Stock!",
+      });
     } else {
-      let errorMsg = 'Chave de integração ou Token NF-Stock inválido.';
-      if (!isEmailValid) errorMsg = 'E-mail cadastrado inválido.';
-      dbService.addLog('error', `Teste de Conexão Cloud falhou: ${errorMsg}`);
+      let errorMsg = "Chave de integração ou Token NF-Stock inválido.";
+      if (!isEmailValid) errorMsg = "E-mail cadastrado inválido.";
+      dbService.addLog("error", `Teste de Conexão Cloud falhou: ${errorMsg}`);
       return res.status(400).json({ error: errorMsg });
     }
   }, 1000);
 });
 
 // 2. Companies
-app.get('/api/companies', (req, res) => {
+app.get("/api/companies", (req, res) => {
   res.json(dbService.getCompanies());
 });
 
-app.post('/api/companies', upload.single('certificate'), (req, res) => {
+app.post("/api/companies", upload.single("certificate"), (req, res) => {
   const { cnpj, razaoSocial, uf, password, activeSync } = req.body;
-  
+
   if (!cnpj || !razaoSocial) {
-    return res.status(400).json({ error: 'CNPJ e Razão Social são obrigatórios.' });
+    return res
+      .status(400)
+      .json({ error: "CNPJ e Razão Social são obrigatórios." });
   }
 
   const existingCompany = dbService.getCompanyByCnpj(cnpj);
-  
-  let certName = existingCompany?.certName || '';
+
+  let certName = existingCompany?.certName || "";
   let certExpiration = existingCompany?.certExpiration || null;
   let certValid = existingCompany?.certValid ?? false;
 
@@ -195,51 +227,65 @@ app.post('/api/companies', upload.single('certificate'), (req, res) => {
     certName,
     certExpiration,
     certValid,
-    activeSync: activeSync === 'true' || activeSync === true
+    activeSync: activeSync === "true" || activeSync === true,
   };
 
   const saved = dbService.addCompany(companyData);
-  dbService.addLog('info', `Empresa ${razaoSocial} salva com sucesso. Certificado digital: ${certName ? 'Carregado' : 'Não cadastrado'}.`, cnpj);
-  
+  dbService.addLog(
+    "info",
+    `Empresa ${razaoSocial} salva com sucesso. Certificado digital: ${certName ? "Carregado" : "Não cadastrado"}.`,
+    cnpj,
+  );
+
   res.json(saved);
 });
 
-app.delete('/api/companies/:cnpj', (req, res) => {
+app.delete("/api/companies/:cnpj", (req, res) => {
   const { cnpj } = req.params;
   const company = dbService.getCompanyByCnpj(cnpj);
   if (!company) {
-    return res.status(404).json({ error: 'Empresa não encontrada.' });
+    return res.status(404).json({ error: "Empresa não encontrada." });
   }
 
   // Delete certificate file if exists
-  const cleanCnpj = cnpj.replace(/\D/g, '');
+  const cleanCnpj = cnpj.replace(/\D/g, "");
   const certPathPng = path.join(UPLOADS_DIR, `${cleanCnpj}_cert.pfx`);
   const certPathP12 = path.join(UPLOADS_DIR, `${cleanCnpj}_cert.p12`);
   if (fs.existsSync(certPathPng)) fs.unlinkSync(certPathPng);
   if (fs.existsSync(certPathP12)) fs.unlinkSync(certPathP12);
 
   dbService.deleteCompany(cnpj);
-  dbService.addLog('info', `Empresa ${company.razaoSocial} e todos os seus dados foram removidos.`);
+  dbService.addLog(
+    "info",
+    `Empresa ${company.razaoSocial} e todos os seus dados foram removidos.`,
+  );
   res.json({ success: true });
 });
 
 // 3. Invoices
-app.get('/api/invoices', (req, res) => {
+app.get("/api/invoices", (req, res) => {
   const { companyCnpj, type, status, startDate, endDate, search } = req.query;
-  const invoices = dbService.getInvoices({ companyCnpj, type, status, startDate, endDate, search });
+  const invoices = dbService.getInvoices({
+    companyCnpj,
+    type,
+    status,
+    startDate,
+    endDate,
+    search,
+  });
   res.json(invoices);
 });
 
-app.post('/api/invoices/sync', (req, res) => {
+app.post("/api/invoices/sync", (req, res) => {
   const { chave, companyCnpj } = req.body;
 
   if (chave) {
     const invoice = dbService.getInvoiceByChave(chave);
     if (!invoice) {
-      return res.status(404).json({ error: 'Nota fiscal não encontrada.' });
+      return res.status(404).json({ error: "Nota fiscal não encontrada." });
     }
     const success = syncInvoiceToAlterdata(invoice);
-    return res.json({ success, status: success ? 'synced' : 'error' });
+    return res.json({ success, status: success ? "synced" : "error" });
   }
 
   // Sync all pending for a company or all
@@ -248,51 +294,57 @@ app.post('/api/invoices/sync', (req, res) => {
 });
 
 // Manual import of XML files
-app.post('/api/invoices/upload', upload.array('xmlFiles'), async (req, res) => {
+app.post("/api/invoices/upload", upload.array("xmlFiles"), async (req, res) => {
   if (!req.files || req.files.length === 0) {
-    return res.status(400).json({ error: 'Nenhum arquivo XML enviado.' });
+    return res.status(400).json({ error: "Nenhum arquivo XML enviado." });
   }
 
   const companies = dbService.getCompanies();
   if (companies.length === 0) {
-    return res.status(400).json({ error: 'Cadastre pelo menos uma empresa antes de importar XMLs.' });
+    return res
+      .status(400)
+      .json({
+        error: "Cadastre pelo menos uma empresa antes de importar XMLs.",
+      });
   }
 
   const results = {
     total: req.files.length,
     imported: 0,
     ignored: 0,
-    errors: []
+    errors: [],
   };
 
   for (const file of req.files) {
     try {
-      const xmlText = fs.readFileSync(file.path, 'utf8');
-      
+      const xmlText = fs.readFileSync(file.path, "utf8");
+
       // Parse metadata from XML
       const metadata = parseNFeXml(xmlText);
-      
+
       // Determine which registered company this XML belongs to
       // CNPJ in XML could be Issuer (Saída) or Recipient (Entrada)
-      const cleanIssuer = metadata.issuerCnpj.replace(/\D/g, '');
-      const cleanRecipient = metadata.recipientCnpj.replace(/\D/g, '');
+      const cleanIssuer = metadata.issuerCnpj.replace(/\D/g, "");
+      const cleanRecipient = metadata.recipientCnpj.replace(/\D/g, "");
 
       // Check match with our registered companies
-      const matchingCompany = companies.find(c => {
-        const cleanC = c.cnpj.replace(/\D/g, '');
+      const matchingCompany = companies.find((c) => {
+        const cleanC = c.cnpj.replace(/\D/g, "");
         return cleanC === cleanIssuer || cleanC === cleanRecipient;
       });
 
       if (!matchingCompany) {
         results.ignored++;
-        results.errors.push(`Arquivo ${file.originalname} ignorado: CNPJ do emitente (${metadata.issuerCnpj}) ou destinatário (${metadata.recipientCnpj}) não corresponde a nenhuma empresa cadastrada.`);
+        results.errors.push(
+          `Arquivo ${file.originalname} ignorado: CNPJ do emitente (${metadata.issuerCnpj}) ou destinatário (${metadata.recipientCnpj}) não corresponde a nenhuma empresa cadastrada.`,
+        );
         fs.unlinkSync(file.path); // delete temp file
         continue;
       }
 
       // Determine invoice type for this company
-      const companyCleanCnpj = matchingCompany.cnpj.replace(/\D/g, '');
-      const type = companyCleanCnpj === cleanIssuer ? 'saida' : 'entrada';
+      const companyCleanCnpj = matchingCompany.cnpj.replace(/\D/g, "");
+      const type = companyCleanCnpj === cleanIssuer ? "saida" : "entrada";
 
       const invoiceData = {
         chave: metadata.chave,
@@ -305,7 +357,7 @@ app.post('/api/invoices/upload', upload.array('xmlFiles'), async (req, res) => {
         recipientName: metadata.recipientName,
         recipientCnpj: metadata.recipientCnpj,
         xmlContent: xmlText,
-        syncStatus: 'pending'
+        syncStatus: "pending",
       };
 
       // Save to database
@@ -319,39 +371,54 @@ app.post('/api/invoices/upload', upload.array('xmlFiles'), async (req, res) => {
       fs.unlinkSync(file.path);
     } catch (err) {
       results.ignored++;
-      results.errors.push(`Erro no arquivo ${file.originalname}: ${err.message}`);
+      results.errors.push(
+        `Erro no arquivo ${file.originalname}: ${err.message}`,
+      );
       if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
     }
   }
 
-  dbService.addLog('info', `Importação manual: ${results.imported} de ${results.total} XMLs importados com sucesso. (Ignorados: ${results.ignored})`);
+  dbService.addLog(
+    "info",
+    `Importação manual: ${results.imported} de ${results.total} XMLs importados com sucesso. (Ignorados: ${results.ignored})`,
+  );
   res.json(results);
 });
 
 // Trigger manual SEFAZ fetch
-app.post('/api/sefaz/fetch/:cnpj', async (req, res) => {
+app.post("/api/sefaz/fetch/:cnpj", async (req, res) => {
   const { cnpj } = req.params;
   const company = dbService.getCompanyByCnpj(cnpj);
   if (!company) {
-    return res.status(404).json({ error: 'Empresa não encontrada.' });
+    return res.status(404).json({ error: "Empresa não encontrada." });
   }
 
   const settings = dbService.getSettings();
   if (!company.certValid && !settings.isSefazSimulation) {
-    return res.status(400).json({ error: 'Certificado digital ausente ou inválido.' });
+    return res
+      .status(400)
+      .json({ error: "Certificado digital ausente ou inválido." });
   }
 
   try {
-    dbService.addLog('info', `Iniciando consulta manual na SEFAZ para ${company.razaoSocial}...`, cnpj);
+    dbService.addLog(
+      "info",
+      `Iniciando consulta manual na SEFAZ para ${company.razaoSocial}...`,
+      cnpj,
+    );
     const fetchedInvoices = await fetchSefazInvoices(company, 5);
-    
+
     if (fetchedInvoices.length === 0) {
-      dbService.addLog('info', `Nenhum novo documento encontrado na SEFAZ para ${company.razaoSocial}.`, cnpj);
+      dbService.addLog(
+        "info",
+        `Nenhum novo documento encontrado na SEFAZ para ${company.razaoSocial}.`,
+        cnpj,
+      );
       return res.json({ success: true, count: 0 });
     }
 
     let newCount = 0;
-    fetchedInvoices.forEach(inv => {
+    fetchedInvoices.forEach((inv) => {
       const added = dbService.addInvoice(inv);
       if (added && added.createdAt === added.syncedAt) {
         // Existed
@@ -361,52 +428,62 @@ app.post('/api/sefaz/fetch/:cnpj', async (req, res) => {
       }
     });
 
-    dbService.addLog('success', `Busca manual concluída. ${newCount} novas notas obtidas da SEFAZ para ${company.razaoSocial}.`, cnpj);
+    dbService.addLog(
+      "success",
+      `Busca manual concluída. ${newCount} novas notas obtidas da SEFAZ para ${company.razaoSocial}.`,
+      cnpj,
+    );
     res.json({ success: true, count: newCount });
   } catch (error) {
-    console.error('Erro ao buscar notas na SEFAZ:', error);
-    dbService.addLog('error', `Falha ao buscar notas na SEFAZ: ${error.message}`, cnpj);
+    console.error("Erro ao buscar notas na SEFAZ:", error);
+    dbService.addLog(
+      "error",
+      `Falha ao buscar notas na SEFAZ: ${error.message}`,
+      cnpj,
+    );
     res.status(500).json({ error: error.message });
   }
 });
 
 // 4. Logs
-app.get('/api/logs', (req, res) => {
+app.get("/api/logs", (req, res) => {
   res.json(dbService.getLogs());
 });
 
-app.post('/api/logs/clear', (req, res) => {
+app.post("/api/logs/clear", (req, res) => {
   dbService.clearLogs();
   res.json({ success: true });
 });
 
 // 5. Tasks (eTarefas)
-app.get('/api/tasks', (req, res) => {
+app.get("/api/tasks", (req, res) => {
   const { companyCnpj } = req.query;
   const tasks = dbService.getTasks(companyCnpj);
   res.json(tasks);
 });
 
-app.post('/api/tasks', (req, res) => {
+app.post("/api/tasks", (req, res) => {
   const { companyCnpj, title, dueDate } = req.body;
   if (!title) {
-    return res.status(400).json({ error: 'Título da obrigação é obrigatório.' });
+    return res
+      .status(400)
+      .json({ error: "Título da obrigação é obrigatório." });
   }
   const task = dbService.addTask({ companyCnpj, title, dueDate });
   res.json(task);
 });
 
-app.patch('/api/tasks/:id', (req, res) => {
+app.patch("/api/tasks/:id", (req, res) => {
   const { id } = req.params;
   const { status, title, dueDate } = req.body;
   const updated = dbService.updateTask(id, { status, title, dueDate });
   if (!updated) {
-    return res.status(404).json({ error: 'Tarefa não encontrada.' });
+    return res.status(404).json({ error: "Tarefa não encontrada." });
   }
   res.json(updated);
 });
 
-app.delete('/api/tasks/:id', (req, res) => {
+app.delete("/api/tasks/:id", (req, res) => {
   const { id } = req.params;
   const success = dbService.deleteTask(id);
   res.json({ success });
@@ -415,8 +492,11 @@ app.delete('/api/tasks/:id', (req, res) => {
 // Start application
 app.listen(PORT, () => {
   console.log(`[Facilita Contábil] Servidor rodando na porta ${PORT}`);
-  dbService.addLog('info', 'Servidor inicializado e escutando na porta ' + PORT);
-  
+  dbService.addLog(
+    "info",
+    "Servidor inicializado e escutando na porta " + PORT,
+  );
+
   // Start background monitoring scheduler
   startScheduler();
 });

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap");
 
 :root {
   /* Colors */
@@ -6,39 +6,39 @@
   --bg-panel: rgba(17, 24, 39, 0.75);
   --bg-card: rgba(31, 41, 55, 0.45);
   --bg-card-hover: rgba(55, 65, 81, 0.5);
-  
+
   --text-primary: #f3f4f6;
   --text-secondary: #9ca3af;
   --text-muted: #6b7280;
-  
+
   --accent: #2563eb;
   --accent-light: #60a5fa;
   --accent-glow: rgba(37, 99, 235, 0.15);
-  
+
   --success: #059669;
   --success-light: #34d399;
   --success-glow: rgba(5, 150, 105, 0.15);
-  
+
   --warning: #d97706;
   --warning-light: #fbbf24;
-  
+
   --danger: #dc2626;
   --danger-light: #f87171;
   --danger-glow: rgba(220, 38, 38, 0.15);
 
   --border: rgba(255, 255, 255, 0.06);
   --border-active: rgba(96, 165, 250, 0.3);
-  
+
   --radius-lg: 16px;
   --radius-md: 10px;
   --radius-sm: 6px;
-  
-  --font-display: 'Plus Jakarta Sans', sans-serif;
-  --font-body: 'Outfit', sans-serif;
-  
+
+  --font-display: "Plus Jakarta Sans", sans-serif;
+  --font-body: "Outfit", sans-serif;
+
   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   --glass-blur: blur(12px);
-  
+
   color-scheme: dark;
 }
 
@@ -54,7 +54,7 @@ body {
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
-  background-image: 
+  background-image:
     radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.08) 0px, transparent 50%),
     radial-gradient(at 100% 0%, rgba(5, 150, 105, 0.05) 0px, transparent 50%),
     radial-gradient(at 50% 100%, rgba(37, 99, 235, 0.05) 0px, transparent 50%);
@@ -152,7 +152,8 @@ scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   border: 1px solid transparent;
 }
 
-.nav-item:hover, .nav-item.active {
+.nav-item:hover,
+.nav-item.active {
   background: var(--bg-card-hover);
   color: var(--text-primary);
   border-color: var(--border);
@@ -197,9 +198,18 @@ scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
 @keyframes pulse {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(52, 211, 153, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(52, 211, 153, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+  }
 }
 
 /* Main Content Area */
@@ -537,7 +547,8 @@ scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   gap: 1rem;
 }
 
-.dropzone:hover, .dropzone.active {
+.dropzone:hover,
+.dropzone.active {
   border-color: var(--accent-light);
   background: var(--accent-glow);
 }
@@ -584,10 +595,18 @@ scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   margin-top: 5px;
 }
 
-.log-type-dot.info { background-color: var(--accent-light); }
-.log-type-dot.success { background-color: var(--success-light); }
-.log-type-dot.warning { background-color: var(--warning-light); }
-.log-type-dot.error { background-color: var(--danger-light); }
+.log-type-dot.info {
+  background-color: var(--accent-light);
+}
+.log-type-dot.success {
+  background-color: var(--success-light);
+}
+.log-type-dot.warning {
+  background-color: var(--warning-light);
+}
+.log-type-dot.error {
+  background-color: var(--danger-light);
+}
 
 /* Custom Switch for Toggle Settings */
 .switch-label {
@@ -619,7 +638,7 @@ scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   bottom: 0;
   background-color: var(--bg-card);
   border: 1px solid var(--border);
-  transition: .4s;
+  transition: 0.4s;
   border-radius: 34px;
 }
 
@@ -631,7 +650,7 @@ scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   left: 3px;
   bottom: 3px;
   background-color: var(--text-secondary);
-  transition: .4s;
+  transition: 0.4s;
   border-radius: 50%;
 }
 
@@ -711,7 +730,7 @@ input:checked + .slider:before {
 .danfe-container {
   background: white;
   color: black;
-  font-family: 'Courier New', Courier, monospace;
+  font-family: "Courier New", Courier, monospace;
   padding: 1.5rem;
   border-radius: 4px;
   font-size: 0.8rem;
