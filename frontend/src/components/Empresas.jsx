@@ -14,22 +14,39 @@ export default function Empresas({ companies, onAddCompany, onDeleteCompany, onF
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Format CNPJ as typing: 00.000.000/0000-00
-  const handleCnpjChange = (e) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 14) value = value.slice(0, 14);
+  const handleCnpjChange = async (e) => {
+    let rawValue = e.target.value.replace(/\D/g, '');
+    if (rawValue.length > 14) rawValue = rawValue.slice(0, 14);
     
     // Apply formatting
-    if (value.length > 12) {
-      value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, '$1.$2.$3/$4-$5');
-    } else if (value.length > 8) {
-      value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})/, '$1.$2.$3/$4');
-    } else if (value.length > 5) {
-      value = value.replace(/^(\d{2})(\d{3})(\d{3})/, '$1.$2.$3');
-    } else if (value.length > 2) {
-      value = value.replace(/^(\d{2})(\d{3})/, '$1.$2');
+    let formattedValue = rawValue;
+    if (rawValue.length > 12) {
+      formattedValue = rawValue.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, '$1.$2.$3/$4-$5');
+    } else if (rawValue.length > 8) {
+      formattedValue = rawValue.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})/, '$1.$2.$3/$4');
+    } else if (rawValue.length > 5) {
+      formattedValue = rawValue.replace(/^(\d{2})(\d{3})(\d{3})/, '$1.$2.$3');
+    } else if (rawValue.length > 2) {
+      formattedValue = rawValue.replace(/^(\d{2})(\d{3})/, '$1.$2');
     }
     
-    setFormData({ ...formData, cnpj: value });
+    setFormData(prev => ({ ...prev, cnpj: formattedValue }));
+
+    if (rawValue.length === 14) {
+      try {
+        const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${rawValue}`);
+        if (response.ok) {
+          const data = await response.json();
+          setFormData(prev => ({
+            ...prev,
+            razaoSocial: data.razao_social || data.nome_fantasia || prev.razaoSocial,
+            uf: data.uf || prev.uf
+          }));
+        }
+      } catch (err) {
+        console.error('Erro ao buscar CNPJ na BrasilAPI:', err);
+      }
+    }
   };
 
   const handleFileChange = (e) => {

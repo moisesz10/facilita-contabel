@@ -316,22 +316,26 @@ export function parseNFeXml(xmlText) {
     const isNfse = xmlText.includes('<Nfse') || xmlText.includes('<tcNfse') || xmlText.includes('<Valores>') || xmlText.includes('<Prestador') || xmlText.includes('<CompNfse');
 
     const getTagVal = (tag, text) => {
-      const regex = new RegExp(`<${tag}>([^<]+)<\/${tag}>`);
+      const regex = new RegExp(`<(\\w+:)?${tag}(\\s+[^>]*)?>([^<]+)<\\/(\\w+:)?${tag}>`, 'i');
       const match = text.match(regex);
-      return match ? match[1].trim() : '';
+      return match ? match[3].trim() : '';
+    };
+
+    const getInnerTag = (tag, text) => {
+      const regex = new RegExp(`<(\\w+:)?${tag}(\\s+[^>]*)?>([\\s\\S]*?)<\\/(\\w+:)?${tag}>`, 'i');
+      const match = text.match(regex);
+      return match ? match[3] : '';
     };
 
     if (isNfse) {
       // It's a Service Invoice (NFS-e)
       const numero = getTagVal('Numero', xmlText) || getTagVal('nDFS', xmlText) || Math.floor(Math.random() * 99999);
       
-      const prestadorMatch = xmlText.match(/<Prestador[\s\S]*?<\/Prestador>/) || xmlText.match(/<PrestadorServico[\s\S]*?<\/PrestadorServico>/);
-      const prestadorText = prestadorMatch ? prestadorMatch[0] : xmlText;
+      const prestadorText = getInnerTag('PrestadorServico', xmlText) || getInnerTag('Prestador', xmlText) || xmlText;
       const issuerCnpj = getTagVal('CNPJ', prestadorText) || getTagVal('Cnpj', prestadorText) || getTagVal('CNPJPrestador', xmlText);
       const issuerName = getTagVal('RazaoSocial', prestadorText) || getTagVal('xNome', prestadorText) || getTagVal('xNomePrestador', xmlText);
 
-      const tomadorMatch = xmlText.match(/<Tomador[\s\S]*?<\/Tomador>/) || xmlText.match(/<TomadorServico[\s\S]*?<\/TomadorServico>/);
-      const tomadorText = tomadorMatch ? tomadorMatch[0] : xmlText;
+      const tomadorText = getInnerTag('TomadorServico', xmlText) || getInnerTag('Tomador', xmlText) || xmlText;
       const recipientCnpj = getTagVal('CNPJ', tomadorText) || getTagVal('Cnpj', tomadorText) || getTagVal('CNPJTomador', xmlText);
       const recipientName = getTagVal('RazaoSocial', tomadorText) || getTagVal('xNome', tomadorText) || getTagVal('xNomeTomador', xmlText);
 
@@ -359,10 +363,17 @@ export function parseNFeXml(xmlText) {
 
     // Extract Chave de Acesso from Id="NFe352..." or infProt/chNFe
     let chave = '';
-    const chMatch = xmlText.match(/<chNFe>([^<]+)<\/chNFe>/) || xmlText.match(/<infNFe\s+[^>]*Id="NFe(\d{44})"/);
+    const chMatch = xmlText.match(/<(\w+:)?chNFe>([^<]+)<\/(\w+:)?chNFe>/i) || xmlText.match(/<(\w+:)?infNFe\s+[^>]*Id="NFe(\d{44})"/i);
     if (chMatch) {
-      chave = chMatch[1];
+      chave = chMatch[2];
     } else {
+      const fallbackMatch = xmlText.match(/chNFe>(\d{44})</i) || xmlText.match(/Id="NFe(\d{44})"/i);
+      if (fallbackMatch) {
+        chave = fallbackMatch[1];
+      }
+    }
+
+    if (!chave) {
       throw new Error('Chave de Acesso não encontrada no XML');
     }
 
@@ -371,14 +382,12 @@ export function parseNFeXml(xmlText) {
     const date = dhEmiRaw ? dhEmiRaw.substring(0, 10) : new Date().toISOString().substring(0, 10);
 
     // Extract Emitente
-    const emitMatch = xmlText.match(/<emit>([\s\S]*?)<\/emit>/);
-    const emitText = emitMatch ? emitMatch[1] : '';
+    const emitText = getInnerTag('emit', xmlText);
     const issuerCnpj = getTagVal('CNPJ', emitText) || getTagVal('CPF', emitText);
     const issuerName = getTagVal('xNome', emitText);
 
     // Extract Destinatário
-    const destMatch = xmlText.match(/<dest>([\s\S]*?)<\/dest>/);
-    const destText = destMatch ? destMatch[1] : '';
+    const destText = getInnerTag('dest', xmlText);
     const recipientCnpj = getTagVal('CNPJ', destText) || getTagVal('CPF', destText);
     const recipientName = getTagVal('xNome', destText);
 
