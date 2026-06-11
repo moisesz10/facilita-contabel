@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MessageSquare, Send, Clock, User, HeadphonesIcon } from "lucide-react";
+import { MessageSquare, Send, Clock, User, HeadphonesIcon, Building } from "lucide-react";
 
 export default function HelpDesk({ companyCnpj, isContador }) {
   const [tickets, setTickets] = useState([]);
