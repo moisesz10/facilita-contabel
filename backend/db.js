@@ -27,9 +27,12 @@ const DEFAULT_DB = {
     awsRegion: "",
     awsAccessKey: "",
     awsSecretKey: "",
+    contadorPassword: "admin", // Senha padrão do escritório
   },
   logs: [],
   tasks: [],
+  dp_requests: [],
+  tickets: [],
 };
 
 const ALGORITHM = "aes-256-cbc";
@@ -161,6 +164,8 @@ export const dbService = {
         certExpiration: company.certExpiration || null,
         certValid: company.certValid ?? false,
         activeSync: company.activeSync ?? true,
+        portalAccess: company.portalAccess ?? true,
+        portalPassword: company.portalPassword || "123456", // Senha inicial padrão
         createdAt: new Date().toISOString(),
       });
     }
@@ -368,4 +373,90 @@ export const dbService = {
     saveDb(db);
     return true;
   },
+
+  // DP Requests
+  getDpRequests: (companyCnpj = null) => {
+    if (!db.dp_requests) db.dp_requests = [];
+    if (companyCnpj) {
+      return db.dp_requests.filter((r) => r.companyCnpj === companyCnpj);
+    }
+    return db.dp_requests;
+  },
+  addDpRequest: (req) => {
+    if (!db.dp_requests) db.dp_requests = [];
+    const newReq = {
+      id: Math.random().toString(36).substring(2, 9),
+      companyCnpj: req.companyCnpj,
+      type: req.type, // 'admissao', 'ferias', 'rescisao', 'afastamento'
+      employeeName: req.employeeName,
+      details: req.details,
+      status: req.status || "pendente", // 'pendente', 'em_analise', 'concluido'
+      createdAt: new Date().toISOString(),
+    };
+    db.dp_requests.push(newReq);
+    saveDb(db);
+    return newReq;
+  },
+  updateDpRequest: (id, updates) => {
+    if (!db.dp_requests) db.dp_requests = [];
+    const index = db.dp_requests.findIndex((r) => r.id === id);
+    if (index !== -1) {
+      db.dp_requests[index] = { ...db.dp_requests[index], ...updates };
+      saveDb(db);
+      return db.dp_requests[index];
+    }
+    return null;
+  },
+
+  // Tickets (Help Desk)
+  getTickets: (companyCnpj = null) => {
+    if (!db.tickets) db.tickets = [];
+    if (companyCnpj) {
+      return db.tickets.filter((t) => t.companyCnpj === companyCnpj);
+    }
+    return db.tickets;
+  },
+  addTicket: (ticket) => {
+    if (!db.tickets) db.tickets = [];
+    const newTicket = {
+      id: Math.random().toString(36).substring(2, 9),
+      companyCnpj: ticket.companyCnpj,
+      subject: ticket.subject,
+      department: ticket.department, // 'fiscal', 'contabil', 'societario'
+      messages: ticket.messages || [], // array of { sender: 'cliente'|'contador', text: string, date: string }
+      status: ticket.status || "aberto", // 'aberto', 'respondido', 'fechado'
+      createdAt: new Date().toISOString(),
+    };
+    db.tickets.push(newTicket);
+    saveDb(db);
+    return newTicket;
+  },
+  addTicketMessage: (id, message) => {
+    if (!db.tickets) db.tickets = [];
+    const index = db.tickets.findIndex((t) => t.id === id);
+    if (index !== -1) {
+      db.tickets[index].messages.push({
+        sender: message.sender,
+        text: message.text,
+        date: new Date().toISOString()
+      });
+      // se contador responde, muda status
+      if (message.sender === 'contador') {
+        db.tickets[index].status = 'respondido';
+      }
+      saveDb(db);
+      return db.tickets[index];
+    }
+    return null;
+  },
+  updateTicketStatus: (id, status) => {
+    if (!db.tickets) db.tickets = [];
+    const index = db.tickets.findIndex((t) => t.id === id);
+    if (index !== -1) {
+      db.tickets[index].status = status;
+      saveDb(db);
+      return db.tickets[index];
+    }
+    return null;
+  }
 };

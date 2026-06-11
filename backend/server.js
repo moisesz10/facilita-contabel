@@ -168,6 +168,36 @@ function startScheduler() {
 
 // REST ENDPOINTS
 
+// 0. Auth
+app.post("/api/auth/login", (req, res) => {
+  const { login, password, isContador } = req.body;
+  
+  if (isContador) {
+    const settings = dbService.getSettings();
+    if (password === settings.contadorPassword) {
+      return res.json({ success: true, role: "contador", token: "fake-jwt-token-contador" });
+    }
+    return res.status(401).json({ error: "Senha do escritório inválida." });
+  } else {
+    // Login Empresa
+    const cleanCnpj = login.replace(/\D/g, "");
+    const company = dbService.getCompanies().find(c => c.cnpj.replace(/\D/g, "") === cleanCnpj);
+    
+    if (company && company.portalAccess && company.portalPassword === password) {
+      return res.json({ 
+        success: true, 
+        role: "empresa", 
+        token: `fake-jwt-token-${company.cnpj}`,
+        company: {
+          cnpj: company.cnpj,
+          razaoSocial: company.razaoSocial
+        }
+      });
+    }
+    return res.status(401).json({ error: "CNPJ ou senha inválidos, ou acesso negado." });
+  }
+});
+
 // 1. Settings
 app.get("/api/settings", (req, res) => {
   res.json(dbService.getSettings());
@@ -650,6 +680,73 @@ app.delete("/api/tasks/:id", (req, res) => {
   const { id } = req.params;
   const success = dbService.deleteTask(id);
   res.json({ success });
+});
+
+// 6. DP Requests (Departamento Pessoal)
+app.get("/api/dp/requests", (req, res) => {
+  const { companyCnpj } = req.query;
+  const requests = dbService.getDpRequests(companyCnpj);
+  res.json(requests);
+});
+
+app.post("/api/dp/requests", (req, res) => {
+  const { companyCnpj, type, employeeName, details } = req.body;
+  const request = dbService.addDpRequest({ companyCnpj, type, employeeName, details });
+  
+  dbService.addLog("info", `[DP Express] Nova solicitação de ${type} para ${employeeName} recebida.`, companyCnpj);
+  
+  res.json(request);
+});
+
+app.patch("/api/dp/requests/:id", (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  const updated = dbService.updateDpRequest(id, { status });
+  if (!updated) {
+    return res.status(404).json({ error: "Solicitação DP não encontrada." });
+  }
+  res.json(updated);
+});
+
+// 7. Tickets (Atendimento / Help Desk)
+app.get("/api/tickets", (req, res) => {
+  const { companyCnpj } = req.query;
+  const tickets = dbService.getTickets(companyCnpj);
+  res.json(tickets);
+});
+
+app.post("/api/tickets", (req, res) => {
+  const { companyCnpj, subject, department, initialMessage } = req.body;
+  const ticket = dbService.addTicket({ companyCnpj, subject, department });
+  
+  // Add first message
+  if (initialMessage) {
+    dbService.addTicketMessage(ticket.id, { sender: 'cliente', text: initialMessage });
+  }
+
+  dbService.addLog("info", `[Help Desk] Novo chamado aberto no depto ${department}: ${subject}`, companyCnpj);
+
+  res.json(ticket);
+});
+
+app.post("/api/tickets/:id/messages", (req, res) => {
+  const { id } = req.params;
+  const { sender, text } = req.body;
+  const updated = dbService.addTicketMessage(id, { sender, text });
+  if (!updated) {
+    return res.status(404).json({ error: "Chamado não encontrado." });
+  }
+  res.json(updated);
+});
+
+app.patch("/api/tickets/:id", (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  const updated = dbService.updateTicketStatus(id, status);
+  if (!updated) {
+    return res.status(404).json({ error: "Chamado não encontrado." });
+  }
+  res.json(updated);
 });
 
 // Start application

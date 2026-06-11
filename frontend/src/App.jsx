@@ -17,10 +17,18 @@ import NotasFiscais from "./components/NotasFiscais";
 import UploadXML from "./components/UploadXML";
 import Configuracoes from "./components/Configuracoes";
 import Tarefas from "./components/Tarefas";
+import Login from "./components/Login";
+
+import GestaoDp from "./components/PainelContador/GestaoDp";
+import DashboardEmpresa from "./components/PortalCliente/DashboardEmpresa";
+import DpRequest from "./components/PortalCliente/DpRequest";
+import HelpDesk from "./components/PortalCliente/HelpDesk";
+import { HeadphonesIcon, Users } from "lucide-react";
 
 const API_BASE = "http://localhost:3001/api";
 
 export default function App() {
+  const [auth, setAuth] = useState(null); // { role: 'contador' | 'empresa', company?: {...} }
   const [activeTab, setActiveTab] = useState("dashboard");
   const [companies, setCompanies] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -355,7 +363,7 @@ export default function App() {
 
     switch (activeTab) {
       case "dashboard":
-        return (
+        return auth.role === "contador" ? (
           <Dashboard
             companies={companies}
             invoices={invoices}
@@ -366,6 +374,8 @@ export default function App() {
             isScanning={isScanning}
             onScanAll={handleScanAll}
           />
+        ) : (
+          <DashboardEmpresa companyCnpj={auth.company.cnpj} />
         );
       case "companies":
         return (
@@ -407,10 +417,18 @@ export default function App() {
             onClearLogs={handleClearLogs}
           />
         );
+      case "dp":
+        return auth.role === "contador" ? <GestaoDp /> : <DpRequest companyCnpj={auth.company.cnpj} />;
+      case "helpdesk":
+        return <HelpDesk companyCnpj={auth.role === "empresa" ? auth.company.cnpj : null} isContador={auth.role === "contador"} />;
       default:
         return <div>Página não encontrada</div>;
     }
   };
+
+  if (!auth) {
+    return <Login onLogin={setAuth} />;
+  }
 
   return (
     <div className="app-container">
@@ -437,80 +455,134 @@ export default function App() {
         </div>
 
         <nav className="nav-menu">
-          <div
-            className={`nav-item ${activeTab === "dashboard" ? "active" : ""}`}
-            onClick={() => setActiveTab("dashboard")}
-          >
-            <LayoutDashboard className="nav-icon" />
-            <span>Dashboard</span>
-          </div>
+          {auth.role === "contador" ? (
+            <>
+              <div
+                className={`nav-item ${activeTab === "dashboard" ? "active" : ""}`}
+                onClick={() => setActiveTab("dashboard")}
+              >
+                <LayoutDashboard className="nav-icon" />
+                <span>Dashboard</span>
+              </div>
 
-          <div
-            className={`nav-item ${activeTab === "companies" ? "active" : ""}`}
-            onClick={() => setActiveTab("companies")}
-          >
-            <Building2 className="nav-icon" />
-            <span>Empresas</span>
-          </div>
+              <div
+                className={`nav-item ${activeTab === "companies" ? "active" : ""}`}
+                onClick={() => setActiveTab("companies")}
+              >
+                <Building2 className="nav-icon" />
+                <span>Empresas</span>
+              </div>
 
-          <div
-            className={`nav-item ${activeTab === "invoices" ? "active" : ""}`}
-            onClick={() => setActiveTab("invoices")}
-          >
-            <FileText className="nav-icon" />
-            <span>Notas Fiscais</span>
-          </div>
+              <div
+                className={`nav-item ${activeTab === "invoices" ? "active" : ""}`}
+                onClick={() => setActiveTab("invoices")}
+              >
+                <FileText className="nav-icon" />
+                <span>Notas Fiscais</span>
+              </div>
 
-          <div
-            className={`nav-item ${activeTab === "tasks" ? "active" : ""}`}
-            onClick={() => setActiveTab("tasks")}
-          >
-            <ClipboardList className="nav-icon" />
-            <span>Tarefas Fiscais</span>
-          </div>
+              <div
+                className={`nav-item ${activeTab === "upload" ? "active" : ""}`}
+                onClick={() => setActiveTab("upload")}
+              >
+                <UploadCloud className="nav-icon" />
+                <span>Importar XML</span>
+              </div>
 
-          <div
-            className={`nav-item ${activeTab === "upload" ? "active" : ""}`}
-            onClick={() => setActiveTab("upload")}
-          >
-            <UploadCloud className="nav-icon" />
-            <span>Importar XML</span>
-          </div>
+              <div
+                className={`nav-item ${activeTab === "tasks" ? "active" : ""}`}
+                onClick={() => setActiveTab("tasks")}
+              >
+                <ClipboardList className="nav-icon" />
+                <span>Gestão de Tarefas</span>
+              </div>
 
-          <div
-            className={`nav-item ${activeTab === "settings" ? "active" : ""}`}
-            onClick={() => setActiveTab("settings")}
-          >
-            <Settings className="nav-icon" />
-            <span>Configurações</span>
-          </div>
+              <div
+                className={`nav-item ${activeTab === "settings" ? "active" : ""}`}
+                onClick={() => setActiveTab("settings")}
+              >
+                <Settings className="nav-icon" />
+                <span>Configurações</span>
+              </div>
+
+              <div className="nav-divider" style={{ borderTop: "1px solid rgba(255,255,255,0.1)", margin: "0.5rem 0" }} />
+              
+              <div
+                className={`nav-item ${activeTab === "dp" ? "active" : ""}`}
+                onClick={() => setActiveTab("dp")}
+              >
+                <Users className="nav-icon" style={{ color: "var(--accent-light)" }} />
+                <span>Gestão DP</span>
+              </div>
+
+              <div
+                className={`nav-item ${activeTab === "helpdesk" ? "active" : ""}`}
+                onClick={() => setActiveTab("helpdesk")}
+              >
+                <HeadphonesIcon className="nav-icon" style={{ color: "var(--success-light)" }} />
+                <span>Chamados</span>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Menu da Empresa (Portal do Cliente) */}
+              <div
+                className={`nav-item ${activeTab === "dashboard" ? "active" : ""}`}
+                onClick={() => setActiveTab("dashboard")}
+              >
+                <LayoutDashboard className="nav-icon" />
+                <span>Meu Painel</span>
+              </div>
+              <div
+                className={`nav-item ${activeTab === "invoices" ? "active" : ""}`}
+                onClick={() => setActiveTab("invoices")}
+              >
+                <FileText className="nav-icon" />
+                <span>Minhas Notas</span>
+              </div>
+
+              <div className="nav-divider" style={{ borderTop: "1px solid rgba(255,255,255,0.1)", margin: "0.5rem 0" }} />
+              
+              <div
+                className={`nav-item ${activeTab === "dp" ? "active" : ""}`}
+                onClick={() => setActiveTab("dp")}
+              >
+                <Users className="nav-icon" />
+                <span>RH / DP</span>
+              </div>
+
+              <div
+                className={`nav-item ${activeTab === "helpdesk" ? "active" : ""}`}
+                onClick={() => setActiveTab("helpdesk")}
+              >
+                <HeadphonesIcon className="nav-icon" />
+                <span>Atendimento</span>
+              </div>
+            </>
+          )}
         </nav>
 
-        <div className="sidebar-footer">
-          <div className="server-status">
-            <div
-              className={`status-dot ${isConnected ? "active" : ""}`}
-              style={{
-                backgroundColor: isConnected
-                  ? "var(--success-light)"
-                  : "var(--danger-light)",
-                boxShadow: isConnected
-                  ? "0 0 8px var(--success-light)"
-                  : "0 0 8px var(--danger-light)",
-              }}
-            />
-            <span>
-              {isConnected ? "Servidor Conectado" : "Servidor Offline"}
-            </span>
-          </div>
-          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            v1.0.0 | Porta 3001
+        <div style={{ padding: "1rem", marginTop: "auto", borderTop: "1px solid rgba(255,255,255,0.1)", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+          Logado como:<br/>
+          <strong style={{ color: "white" }}>
+            {auth.role === "contador" ? "Escritório Contábil" : auth.company?.razaoSocial}
+          </strong>
+          <div style={{ marginTop: "0.5rem" }}>
+            <a href="#" onClick={(e) => { e.preventDefault(); setAuth(null); }} style={{ color: "var(--danger-light)" }}>Sair</a>
           </div>
         </div>
       </aside>
 
-      {/* Main Content Pane */}
-      <main className="main-content">{renderContent()}</main>
+      {/* Main Content */}
+      <main className="main-content">
+        {errorMsg && (
+          <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>
+            <AlertTriangle size={18} />
+            {errorMsg}
+          </div>
+        )}
+        {renderTab()}
+      </main>
     </div>
   );
 }
