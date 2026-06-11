@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 import axios from "axios";
 
 import { dbService } from "./db.js";
-import { fetchSefazInvoices, parseNFeXml } from "./sefazService.js";
+import { fetchSefazInvoices, parseNFeXml, sendMdeEvent } from "./sefazService.js";
 import {
   syncInvoiceToAlterdata,
   syncPendingInvoices,
@@ -338,6 +338,41 @@ app.get("/api/invoices", (req, res) => {
   res.json(invoices);
 });
 
+// Dashboard Analytics
+app.get("/api/dashboard", (req, res) => {
+  const { companyCnpj } = req.query;
+  const invoices = dbService.getInvoices(companyCnpj ? { companyCnpj } : {});
+  
+  const totalEntrada = invoices.filter(i => i.type === 'entrada').reduce((sum, i) => sum + i.value, 0);
+  const totalSaida = invoices.filter(i => i.type === 'saida').reduce((sum, i) => sum + i.value, 0);
+  const notasSincronizadas = invoices.filter(i => i.syncStatus === 'synced').length;
+  const notasComErro = invoices.filter(i => i.syncStatus === 'error').length;
+  const notasPendentes = invoices.filter(i => i.syncStatus === 'pending').length;
+
+  const parceiros = {};
+  invoices.forEach(i => {
+    const pName = i.type === 'entrada' ? i.issuerName : i.recipientName;
+    const nomeLimpo = pName || "Desconhecido";
+    if (!parceiros[nomeLimpo]) parceiros[nomeLimpo] = 0;
+    parceiros[nomeLimpo] += i.value;
+  });
+
+  const topParceiros = Object.entries(parceiros)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
+
+  res.json({
+    totalEntrada,
+    totalSaida,
+    notasSincronizadas,
+    notasComErro,
+    notasPendentes,
+    totalInvoices: invoices.length,
+    topParceiros
+  });
+});
+
 app.post("/api/invoices/sync", async (req, res) => {
   const { chave, companyCnpj } = req.body;
 
@@ -353,6 +388,42 @@ app.post("/api/invoices/sync", async (req, res) => {
   // Sync all pending for a company or all
   const syncedCount = await syncPendingInvoices(companyCnpj);
   res.json({ success: true, syncedCount });
+});
+
+// MD-e (Manifestação do Destinatário)
+app.post("/api/invoices/:chave/mde", async (req, res) => {
+  const { chave } = req.params;
+  const { tipoEvento } = req.body; // e.g. "210210" for Ciencia da Operacao
+
+  const invoice = dbService.getInvoiceByChave(chave);
+  if (!invoice) {
+    return res.status(404).json({ error: "Nota fiscal não encontrada." });
+  }
+
+  const company = dbService.getCompanyByCnpj(invoice.companyCnpj);
+  if (!company) {
+    return res.status(404).json({ error: "Empresa não encontrada." });
+  }
+
+  try {
+    const response = await sendMdeEvent(chave, company.cnpj, tipoEvento);
+    
+    // Log success
+    dbService.addLog(
+      "success",
+      `[MD-e] Evento de Manifestação (${tipoEvento}) registrado com sucesso para a NF-e ${chave.slice(-6)}. Protocolo: ${response.protocolo}`,
+      company.cnpj
+    );
+
+    res.json({ success: true, protocolo: response.protocolo });
+  } catch (err) {
+    dbService.addLog(
+      "error",
+      `[MD-e] Erro ao manifestar NF-e ${chave.slice(-6)}: ${err.message}`,
+      company.cnpj
+    );
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Manual import of XML files

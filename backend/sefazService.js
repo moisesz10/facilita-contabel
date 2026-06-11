@@ -707,6 +707,27 @@ export async function fetchSefazInvoices(company, limit = 5) {
   return fetched;
 }
 
+// MD-e (Manifestação do Destinatário) - Simulação de Envio de Evento SEFAZ
+export async function sendMdeEvent(chave, companyCnpj, tipoEvento) {
+  // Real implementation would connect to SEFAZ RecepcaoEvento endpoint via SOAP
+  // Types: 210200 (Confirmacao), 210210 (Ciencia), 210220 (Desconhecimento), 210240 (Operacao Nao Realizada)
+  
+  // Simulate network delay
+  await new Promise(resolve => setTimeout(resolve, 800));
+
+  // Simulate SEFAZ Response
+  if (Math.random() > 0.95) {
+    throw new Error("SEFAZ: Serviço Indisponível no momento.");
+  }
+
+  return {
+    status: 135, // Evento registrado e vinculado a NF-e
+    motivo: "Evento registrado e vinculado a NF-e",
+    protocolo: `1${Math.floor(Math.random() * 99999999999999)}`,
+    dataHora: new Date().toISOString()
+  };
+}
+
 const formatCurrency = (val) => {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",

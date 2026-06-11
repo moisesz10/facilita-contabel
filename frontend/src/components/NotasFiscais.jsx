@@ -14,6 +14,7 @@ import {
   Check,
   Folder,
   Cloud,
+  FileSignature,
 } from "lucide-react";
 import { formatCurrency, formatCnpj, formatDate } from "../utils/format";
 
@@ -117,6 +118,27 @@ export default function NotasFiscais({ invoices, companies, onSyncInvoice }) {
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
+  };
+
+  const handleManifestacao = async (chave) => {
+    if (window.confirm(`Confirma a "Ciência da Emissão" para a NF-e ${chave.slice(-6)}?`)) {
+      try {
+        const res = await fetch(`http://localhost:3001/api/invoices/${chave}/mde`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tipoEvento: "210210" })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          alert(`Evento de manifestação registrado!\nProtocolo SEFAZ: ${data.protocolo}`);
+        } else {
+          const err = await res.json();
+          alert(`Erro na manifestação: ${err.error}`);
+        }
+      } catch (err) {
+        alert("Erro de conexão ao enviar evento MD-e.");
+      }
+    }
   };
 
 
@@ -527,6 +549,16 @@ export default function NotasFiscais({ invoices, companies, onSyncInvoice }) {
                     </td>
                     <td style={{ textAlign: "right" }}>
                       <div style={{ display: "inline-flex", gap: "0.35rem" }}>
+                        {inv.type === "entrada" && (
+                          <button
+                            title="Manifestar Ciência (MD-e)"
+                            className="btn btn-secondary btn-icon"
+                            onClick={() => handleManifestacao(inv.chave)}
+                            style={{ padding: "0.4rem" }}
+                          >
+                            <FileSignature size={15} />
+                          </button>
+                        )}
                         <button
                           title="Visualizar DANFE Simplificada"
                           className="btn btn-secondary btn-icon"
