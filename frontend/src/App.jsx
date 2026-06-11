@@ -581,7 +581,7 @@ export default function App() {
             {errorMsg}
           </div>
         )}
-        {renderTab()}
+        {renderContent()}
       </main>
     </div>
   );

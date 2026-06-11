@@ -79,6 +79,9 @@ function loadDb() {
     const parsed = JSON.parse(data);
     if (!parsed.tasks) parsed.tasks = [];
 
+    // Ensure all default settings are present
+    parsed.settings = { ...DEFAULT_DB.settings, ...parsed.settings };
+
     // Decrypt token on load
     if (parsed.settings) {
       if (parsed.settings.nfStockToken) {
