@@ -14,6 +14,7 @@ import {
 } from "./alterdataService.js";
 import { saveToCofreDigital } from "./storageService.js";
 import { scrapeNfse } from "./workers/nfseWorker.js";
+import { startNoteWatcher } from "./services/noteWatcher.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -761,4 +762,6 @@ app.listen(PORT, "127.0.0.1", () => {
 
   // Start background monitoring scheduler
   startScheduler();
+  // Start watching exported notes folder
+  startNoteWatcher();
 });

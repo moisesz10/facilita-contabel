@@ -6,5 +6,10 @@
     "start": "npx -y concurrently --kill-others \"npm run start --prefix backend\" \"npm run dev --prefix frontend\"",
     "backend": "npm run start --prefix backend",
     "frontend": "npm run dev --prefix frontend"
+  },
+  "dependencies": {
+    "axios": "^1.17.0",
+    "chokidar": "^5.0.0",
+    "nodemailer": "^8.0.11"
   }
 }
