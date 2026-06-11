@@ -1,10 +1,12 @@
 import fs from "fs";
 import path from "path";
+import axios from "axios";
+import FormData from "form-data";
 import { dbService } from "./db.js";
 import { generateDanfeHtml } from "./sefazService.js";
 
 // Synchronize a single invoice to the Alterdata directory or cloud
-export function syncInvoiceToAlterdata(invoice) {
+export async function syncInvoiceToAlterdata(invoice) {
   const settings = dbService.getSettings();
   const enableFolderSync = settings.enableFolderSync ?? true;
   const enableCloudSync = settings.enableCloudSync ?? false;
@@ -122,30 +124,47 @@ export function syncInvoiceToAlterdata(invoice) {
           invoice.companyCnpj,
         );
 
-        // Simulating direct HTTP handshake, schema check, and server response
-        // Endpoint: https://ms-importacao-service-nfstock.alterdatasoftware.com.br/storage
-        dbService.addLog(
-          "info",
-          `[Nuvem Alterdata] Autenticação com token concluída para ${email}. Transmitindo arquivo...`,
-          invoice.companyCnpj,
-        );
+        // Real API request to Alterdata NF-Stock
+        const formData = new FormData();
+        const xmlBuffer = Buffer.from(invoice.xmlContent, "utf8");
+        formData.append("file", xmlBuffer, {
+          filename: `${invoice.chave}-nfe.xml`,
+          contentType: "application/xml",
+        });
 
-        const cleanCnpj = invoice.companyCnpj.replace(/\D/g, "");
-        dbService.addLog(
-          "success",
-          `[Nuvem Alterdata] Nota ${invoice.chave.slice(-6)} integrada diretamente ao Alterdata Fiscal do cliente ${cleanCnpj}.`,
-          invoice.companyCnpj,
-        );
+        const endpoint = "https://ms-importacao-service-nfstock.alterdatasoftware.com.br/storage";
+
+        const response = await axios.post(endpoint, formData, {
+          headers: {
+            ...formData.getHeaders(),
+            "Authorization": `Bearer ${token}`, // Padrão assumido
+            "Integration-Token": token, // Algumas APIs usam Integration-Token
+            "X-User-Email": email
+          },
+          timeout: 15000,
+          validateStatus: (status) => status < 500 // Considerar <500 para logar erro direito
+        });
+
+        if (response.status >= 200 && response.status < 300) {
+          const cleanCnpj = invoice.companyCnpj.replace(/\D/g, "");
+          dbService.addLog(
+            "success",
+            `[Nuvem Alterdata] Nota ${invoice.chave.slice(-6)} integrada diretamente ao Alterdata Fiscal do cliente ${cleanCnpj}.`,
+            invoice.companyCnpj,
+          );
+        } else {
+          throw new Error(`API retornou status HTTP ${response.status}: ${JSON.stringify(response.data || 'Sem resposta')}`);
+        }
       } catch (err) {
         cloudSuccess = false;
-        cloudError = err.message;
+        cloudError = err.response ? `Erro da API: ${err.response.status} - ${JSON.stringify(err.response.data)}` : err.message;
         console.error(
           `Erro na integração em nuvem da nota ${invoice.chave}:`,
-          err,
+          cloudError,
         );
         dbService.addLog(
           "error",
-          `[Nuvem Alterdata] Falha ao enviar nota ${invoice.chave.slice(-6)}: ${err.message}`,
+          `[Nuvem Alterdata] Falha ao enviar nota ${invoice.chave.slice(-6)}: ${cloudError}`,
           invoice.companyCnpj,
         );
       }
@@ -188,7 +207,7 @@ export function syncInvoiceToAlterdata(invoice) {
 }
 
 // Synchronize all pending invoices for a specific company or all companies
-export function syncPendingInvoices(companyCnpj = null) {
+export async function syncPendingInvoices(companyCnpj = null) {
   const filters = { status: "pending" };
   if (companyCnpj) {
     filters.companyCnpj = companyCnpj;
@@ -201,7 +220,7 @@ export function syncPendingInvoices(companyCnpj = null) {
 
   let successCount = 0;
   for (const invoice of pendingInvoices) {
-    const success = syncInvoiceToAlterdata(invoice);
+    const success = await syncInvoiceToAlterdata(invoice);
     if (success) successCount++;
   }
 

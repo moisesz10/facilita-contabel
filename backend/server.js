@@ -4,6 +4,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import axios from "axios";
 
 import { dbService } from "./db.js";
 import { fetchSefazInvoices, parseNFeXml } from "./sefazService.js";
@@ -53,7 +54,7 @@ app.use(express.json({ limit: "10mb" }));
 // Background Scheduler instance
 let schedulerIntervalId = null;
 
-function runAutoFetchJob() {
+async function runAutoFetchJob() {
   const settings = dbService.getSettings();
   const companies = dbService.getCompanies().filter((c) => c.activeSync);
 
@@ -70,20 +71,20 @@ function runAutoFetchJob() {
     `Iniciando varredura automática para ${companies.length} empresas...`,
   );
 
-  companies.forEach(async (company) => {
+  for (const company of companies) {
     try {
       const fetchedInvoices = await fetchSefazInvoices(company, 3);
       if (fetchedInvoices.length > 0) {
         let newCount = 0;
-        fetchedInvoices.forEach((inv) => {
+        for (const inv of fetchedInvoices) {
           const existing = dbService.getInvoiceByChave(inv.chave);
           if (!existing) {
             const added = dbService.addInvoice(inv);
             newCount++;
             // Auto sync to Alterdata immediately
-            syncInvoiceToAlterdata(added);
+            await syncInvoiceToAlterdata(added);
           }
-        });
+        }
         if (newCount > 0) {
           dbService.addLog(
             "success",
@@ -92,6 +93,21 @@ function runAutoFetchJob() {
           );
         }
       }
+
+      // Auto-Retry para notas com erro dessa empresa
+      const errorInvoices = dbService.getInvoices({ companyCnpj: company.cnpj, status: "error" });
+      if (errorInvoices.length > 0) {
+        dbService.addLog("info", `Auto-Retry: Tentando reenviar ${errorInvoices.length} notas com falha de ${company.razaoSocial}...`, company.cnpj);
+        let retryCount = 0;
+        for (const errInv of errorInvoices) {
+          const success = await syncInvoiceToAlterdata(errInv);
+          if (success) retryCount++;
+        }
+        if (retryCount > 0) {
+          dbService.addLog("success", `Auto-Retry concluído: ${retryCount} notas de ${company.razaoSocial} exportadas com sucesso nesta tentativa.`, company.cnpj);
+        }
+      }
+
     } catch (err) {
       console.error(
         `Erro na busca automática para a empresa ${company.cnpj}:`,
@@ -103,7 +119,7 @@ function runAutoFetchJob() {
         company.cnpj,
       );
     }
-  });
+  }
 
   dbService.updateSettings({ lastAutoSync: new Date().toISOString() });
 }
@@ -156,7 +172,7 @@ app.post("/api/settings", (req, res) => {
 });
 
 // Test Alterdata NF-Stock Cloud connection
-app.post("/api/settings/test-cloud", (req, res) => {
+app.post("/api/settings/test-cloud", async (req, res) => {
   const { email, token } = req.body;
 
   if (!email || !token) {
@@ -165,12 +181,27 @@ app.post("/api/settings/test-cloud", (req, res) => {
     });
   }
 
-  // Simulate a real API handshake with Alterdata NF-Stock Cloud
-  setTimeout(() => {
-    const isEmailValid = email.includes("@") && email.includes(".");
-    const isTokenValid = token.length >= 8;
+  const isEmailValid = email.includes("@") && email.includes(".");
+  if (!isEmailValid) {
+    let errorMsg = "E-mail cadastrado inválido.";
+    dbService.addLog("error", `Teste de Conexão Cloud falhou: ${errorMsg}`);
+    return res.status(400).json({ error: errorMsg });
+  }
 
-    if (isEmailValid && isTokenValid) {
+  try {
+    const endpoint = "https://ms-importacao-service-nfstock.alterdatasoftware.com.br/storage";
+    // We send an empty POST just to check authentication, usually returns 400 Bad Request instead of 401 Unauthorized if valid
+    const response = await axios.post(endpoint, {}, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Integration-Token": token,
+        "X-User-Email": email
+      },
+      timeout: 10000,
+      validateStatus: (status) => status < 500
+    });
+
+    if (response.status !== 401 && response.status !== 403) {
       dbService.addLog(
         "success",
         `Teste de Conexão Cloud: Conectado com sucesso ao portal Alterdata NF-Stock para o e-mail ${email}.`,
@@ -181,11 +212,14 @@ app.post("/api/settings/test-cloud", (req, res) => {
       });
     } else {
       let errorMsg = "Chave de integração ou Token NF-Stock inválido.";
-      if (!isEmailValid) errorMsg = "E-mail cadastrado inválido.";
       dbService.addLog("error", `Teste de Conexão Cloud falhou: ${errorMsg}`);
-      return res.status(400).json({ error: errorMsg });
+      return res.status(401).json({ error: errorMsg });
     }
-  }, 1000);
+  } catch (err) {
+    let errorMsg = "Erro de rede ao conectar à Nuvem Alterdata.";
+    dbService.addLog("error", `Teste de Conexão Cloud falhou: ${errorMsg}`);
+    return res.status(500).json({ error: errorMsg });
+  }
 });
 
 // 2. Companies
@@ -304,7 +338,7 @@ app.get("/api/invoices", (req, res) => {
   res.json(invoices);
 });
 
-app.post("/api/invoices/sync", (req, res) => {
+app.post("/api/invoices/sync", async (req, res) => {
   const { chave, companyCnpj } = req.body;
 
   if (chave) {
@@ -312,12 +346,12 @@ app.post("/api/invoices/sync", (req, res) => {
     if (!invoice) {
       return res.status(404).json({ error: "Nota fiscal não encontrada." });
     }
-    const success = syncInvoiceToAlterdata(invoice);
+    const success = await syncInvoiceToAlterdata(invoice);
     return res.json({ success, status: success ? "synced" : "error" });
   }
 
   // Sync all pending for a company or all
-  const syncedCount = syncPendingInvoices(companyCnpj);
+  const syncedCount = await syncPendingInvoices(companyCnpj);
   res.json({ success: true, syncedCount });
 });
 
@@ -391,7 +425,7 @@ app.post("/api/invoices/upload", upload.array("xmlFiles"), async (req, res) => {
       results.imported++;
 
       // Auto sync to Alterdata
-      syncInvoiceToAlterdata(added);
+      await syncInvoiceToAlterdata(added);
 
       // Clean up uploaded temp file
       fs.unlinkSync(file.path);
@@ -444,14 +478,14 @@ app.post("/api/sefaz/fetch/:cnpj", async (req, res) => {
     }
 
     let newCount = 0;
-    fetchedInvoices.forEach((inv) => {
+    for (const inv of fetchedInvoices) {
       const existing = dbService.getInvoiceByChave(inv.chave);
       if (!existing) {
         const added = dbService.addInvoice(inv);
         newCount++;
-        syncInvoiceToAlterdata(added);
+        await syncInvoiceToAlterdata(added);
       }
-    });
+    }
 
     dbService.addLog(
       "success",
