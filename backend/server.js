@@ -5,6 +5,11 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import axios from "axios";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import 'dotenv/config';
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 
 import { dbService } from "./db.js";
 import { fetchSefazInvoices, parseNFeXml, sendMdeEvent } from "./sefazService.js";
@@ -20,7 +25,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+// Security middlewares
+app.use(helmet());
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+});
+app.use(limiter);
+
+const PORT = process.env.PORT || 4000; // can be overridden via .env
 
 // Setup directories
 const UPLOADS_DIR = path.join(__dirname, "uploads", "certificates");
@@ -169,37 +182,59 @@ function startScheduler() {
 
 // REST ENDPOINTS
 
-// 0. Auth
-app.post("/api/auth/login", (req, res) => {
+app.post("/api/auth/login", async (req, res) => {
   const { login, password, isContador } = req.body;
-  
+
+  // Contador login (simple static password from settings)
   if (isContador) {
     const settings = dbService.getSettings();
-    if (password === settings.contadorPassword) {
-      return res.json({ success: true, role: "contador", token: "fake-jwt-token-contador" });
+    const match = await bcrypt.compare(password, settings.contadorPasswordHash || "");
+    if (match) {
+      const token = jwt.sign({ role: "contador" }, process.env.JWT_SECRET, { expiresIn: "8h" });
+      return res.json({ success: true, role: "contador", token });
     }
     return res.status(401).json({ error: "Senha do escritório inválida." });
-  } else {
-    // Login Empresa
-    const cleanCnpj = login.replace(/\D/g, "");
-    const company = dbService.getCompanies().find(c => c.cnpj.replace(/\D/g, "") === cleanCnpj);
-    
-    if (company && company.portalAccess && company.portalPassword === password) {
-      return res.json({ 
-        success: true, 
-        role: "empresa", 
-        token: `fake-jwt-token-${company.cnpj}`,
-        company: {
-          cnpj: company.cnpj,
-          razaoSocial: company.razaoSocial
-        }
+  }
+
+  // Empresa login
+  const cleanCnpj = login.replace(/\D/g, "");
+  const company = dbService.getCompanies().find(c => c.cnpj.replace(/\D/g, "") === cleanCnpj);
+
+  if (company && company.portalAccess && company.portalPassword) {
+    const match = await bcrypt.compare(password, company.portalPasswordHash || "");
+    if (match) {
+      const token = jwt.sign({ role: "empresa", cnpj: company.cnpj }, process.env.JWT_SECRET, { expiresIn: "8h" });
+      return res.json({
+        success: true,
+        role: "empresa",
+        token,
+        company: { cnpj: company.cnpj, razaoSocial: company.razaoSocial }
       });
     }
-    return res.status(401).json({ error: "CNPJ ou senha inválidos, ou acesso negado." });
   }
+  return res.status(401).json({ error: "CNPJ ou senha inválidos, ou acesso negado." });
 });
 
 // 1. Settings
+// Protect routes (except login and public endpoints)
+const authMiddleware = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token ausente' });
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = payload; // attach payload to request
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Token inválido' });
+  }
+};
+
+// Apply auth middleware to all subsequent routes
+app.use(authMiddleware);
+
 app.get("/api/settings", (req, res) => {
   res.json(dbService.getSettings());
 });
