@@ -12,6 +12,7 @@ import {
   syncInvoiceToAlterdata,
   syncPendingInvoices,
 } from "./alterdataService.js";
+import { saveToCofreDigital } from "./storageService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -81,6 +82,11 @@ async function runAutoFetchJob() {
           if (!existing) {
             const added = dbService.addInvoice(inv);
             newCount++;
+            
+            // Salvar no Cofre Digital antes de mandar para o Alterdata
+            await saveToCofreDigital(added);
+            dbService.updateInvoiceSyncStatuses(added.chave, { localSyncStatus: added.cofreStatus });
+
             // Auto sync to Alterdata immediately
             await syncInvoiceToAlterdata(added);
           }
@@ -494,6 +500,10 @@ app.post("/api/invoices/upload", upload.array("xmlFiles"), async (req, res) => {
       // Save to database
       const added = dbService.addInvoice(invoiceData);
       results.imported++;
+
+      // Salvar no Cofre Digital
+      await saveToCofreDigital(added);
+      dbService.updateInvoiceSyncStatuses(added.chave, { localSyncStatus: added.cofreStatus });
 
       // Auto sync to Alterdata
       await syncInvoiceToAlterdata(added);

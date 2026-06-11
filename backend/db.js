@@ -22,6 +22,11 @@ const DEFAULT_DB = {
     enableCloudSync: false,
     nfStockEmail: "",
     nfStockToken: "",
+    enableCofreDigitalCloud: false,
+    awsBucketName: "",
+    awsRegion: "",
+    awsAccessKey: "",
+    awsSecretKey: "",
   },
   logs: [],
   tasks: [],
@@ -72,8 +77,13 @@ function loadDb() {
     if (!parsed.tasks) parsed.tasks = [];
 
     // Decrypt token on load
-    if (parsed.settings && parsed.settings.nfStockToken) {
-      parsed.settings.nfStockToken = decrypt(parsed.settings.nfStockToken);
+    if (parsed.settings) {
+      if (parsed.settings.nfStockToken) {
+        parsed.settings.nfStockToken = decrypt(parsed.settings.nfStockToken);
+      }
+      if (parsed.settings.awsSecretKey) {
+        parsed.settings.awsSecretKey = decrypt(parsed.settings.awsSecretKey);
+      }
     }
 
     return parsed;
@@ -87,8 +97,13 @@ function saveDb(data) {
   try {
     // Clone DB to prevent encrypting in-memory database object
     const clone = JSON.parse(JSON.stringify(data));
-    if (clone.settings && clone.settings.nfStockToken) {
-      clone.settings.nfStockToken = encrypt(clone.settings.nfStockToken);
+    if (clone.settings) {
+      if (clone.settings.nfStockToken) {
+        clone.settings.nfStockToken = encrypt(clone.settings.nfStockToken);
+      }
+      if (clone.settings.awsSecretKey) {
+        clone.settings.awsSecretKey = encrypt(clone.settings.awsSecretKey);
+      }
     }
     fs.writeFileSync(DB_PATH, JSON.stringify(clone, null, 2), "utf8");
   } catch (error) {

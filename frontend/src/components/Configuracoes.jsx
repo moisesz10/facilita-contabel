@@ -27,6 +27,12 @@ export default function Configuracoes({
   const [nfStockEmail, setNfStockEmail] = useState("");
   const [nfStockToken, setNfStockToken] = useState("");
 
+  const [enableCofreDigitalCloud, setEnableCofreDigitalCloud] = useState(false);
+  const [awsBucketName, setAwsBucketName] = useState("");
+  const [awsRegion, setAwsRegion] = useState("");
+  const [awsAccessKey, setAwsAccessKey] = useState("");
+  const [awsSecretKey, setAwsSecretKey] = useState("");
+
   const [isSaving, setIsSaving] = useState(false);
   const [isTestingCloud, setIsTestingCloud] = useState(false);
   const [cloudTestResult, setCloudTestResult] = useState(null);
@@ -40,6 +46,12 @@ export default function Configuracoes({
       setEnableCloudSync(settings.enableCloudSync ?? false);
       setNfStockEmail(settings.nfStockEmail || "");
       setNfStockToken(settings.nfStockToken || "");
+      
+      setEnableCofreDigitalCloud(settings.enableCofreDigitalCloud ?? false);
+      setAwsBucketName(settings.awsBucketName || "");
+      setAwsRegion(settings.awsRegion || "");
+      setAwsAccessKey(settings.awsAccessKey || "");
+      setAwsSecretKey(settings.awsSecretKey || "");
     }
   }, [settings]);
 
@@ -54,6 +66,11 @@ export default function Configuracoes({
       enableCloudSync,
       nfStockEmail,
       nfStockToken,
+      enableCofreDigitalCloud,
+      awsBucketName,
+      awsRegion,
+      awsAccessKey,
+      awsSecretKey,
     });
     setIsSaving(false);
   };
@@ -369,6 +386,110 @@ export default function Configuracoes({
                     </span>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Toggle Cofre Digital Cloud */}
+            <div
+              className="form-group"
+              style={{
+                margin: 0,
+                paddingBottom: "1rem",
+                borderBottom: "1px solid var(--border)",
+                marginTop: "0.5rem",
+              }}
+            >
+              <label className="switch-label">
+                <div>
+                  <span
+                    className="form-label"
+                    style={{
+                      margin: 0,
+                      fontWeight: "bold",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.25rem",
+                    }}
+                  >
+                    3. Cofre Digital em Nuvem (AWS S3)
+                  </span>
+                  <p
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "var(--text-muted)",
+                      marginTop: "0.2rem",
+                      fontWeight: "normal",
+                    }}
+                  >
+                    Realiza o backup dos XMLs na nuvem da AWS (guarda legal por 5 anos).
+                  </p>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={enableCofreDigitalCloud}
+                    onChange={(e) => setEnableCofreDigitalCloud(e.target.checked)}
+                  />
+                  <span className="slider"></span>
+                </label>
+              </label>
+            </div>
+
+            {enableCofreDigitalCloud && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1rem",
+                  paddingLeft: "1rem",
+                  borderLeft: "2px solid #ff9900",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Nome do Bucket S3</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: meu-cofre-digital-xmls"
+                    className="form-input"
+                    value={awsBucketName}
+                    onChange={(e) => setAwsBucketName(e.target.value)}
+                    required={enableCofreDigitalCloud}
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Região AWS</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: sa-east-1 (São Paulo)"
+                    className="form-input"
+                    value={awsRegion}
+                    onChange={(e) => setAwsRegion(e.target.value)}
+                    required={enableCofreDigitalCloud}
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Access Key ID</label>
+                  <input
+                    type="text"
+                    placeholder="Sua AWS Access Key"
+                    className="form-input"
+                    value={awsAccessKey}
+                    onChange={(e) => setAwsAccessKey(e.target.value)}
+                    required={enableCofreDigitalCloud}
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Secret Access Key</label>
+                  <input
+                    type="password"
+                    placeholder="Sua AWS Secret Key"
+                    className="form-input"
+                    value={awsSecretKey}
+                    onChange={(e) => setAwsSecretKey(e.target.value)}
+                    required={enableCofreDigitalCloud}
+                  />
+                </div>
               </div>
             )}
 
