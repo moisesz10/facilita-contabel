@@ -13,6 +13,7 @@ import {
   syncPendingInvoices,
 } from "./alterdataService.js";
 import { saveToCofreDigital } from "./storageService.js";
+import { scrapeNfse } from "./workers/nfseWorker.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -112,6 +113,28 @@ async function runAutoFetchJob() {
         if (retryCount > 0) {
           dbService.addLog("success", `Auto-Retry concluído: ${retryCount} notas de ${company.razaoSocial} exportadas com sucesso nesta tentativa.`, company.cnpj);
         }
+      }
+
+      // Executa o Robô de NFS-e (Scraping) para capturar notas de serviço
+      try {
+        const nfseList = await scrapeNfse(company);
+        if (nfseList && nfseList.length > 0) {
+          for (const nfse of nfseList) {
+            const existing = dbService.getInvoiceByChave(nfse.chave);
+            if (!existing) {
+              const added = dbService.addInvoice(nfse);
+              
+              // Tenta salvar NFS-e no Cofre Digital também
+              await saveToCofreDigital(added);
+              dbService.updateInvoiceSyncStatuses(added.chave, { localSyncStatus: added.cofreStatus });
+              
+              // Sincroniza com Alterdata
+              await syncInvoiceToAlterdata(added);
+            }
+          }
+        }
+      } catch (scrapingErr) {
+        console.error(`Erro no robô NFS-e para ${company.cnpj}:`, scrapingErr);
       }
 
     } catch (err) {
