@@ -153,6 +153,43 @@ export default function NotasFiscais({ invoices, companies, onSyncInvoice }) {
     return items;
   };
 
+  const parseAddressFromXml = (xml, type) => {
+    if (!xml) return '';
+    const blockMatch = xml.match(type === 'emit' ? /<enderEmit>([\s\S]*?)<\/enderEmit>/ : /<enderDest>([\s\S]*?)<\/enderDest>/);
+    if (!blockMatch) return '';
+    const block = blockMatch[1];
+    
+    const getTag = (tag) => {
+      const r = new RegExp(`<${tag}>([^<]+)<\/${tag}>`);
+      const m = block.match(r);
+      return m ? m[1].trim() : '';
+    };
+
+    const lgr = getTag('xLgr');
+    const n = getTag('n');
+    const bairro = getTag('xBairro');
+    const mun = getTag('xMun');
+    const uf = getTag('UF');
+    const cep = getTag('CEP');
+    
+    let formattedCep = cep;
+    if (cep.length === 8) {
+      formattedCep = cep.replace(/^(\d{5})(\d{3})/, '$1-$2');
+    }
+    
+    return `${lgr}, ${n} - ${bairro} - ${mun} - ${uf} - CEP: ${formattedCep}`;
+  };
+
+  const getTagFromXmlBlock = (xml, blockType, tag) => {
+    if (!xml) return '';
+    const blockMatch = xml.match(blockType === 'emit' ? /<emit>([\s\S]*?)<\/emit>/ : /<dest>([\s\S]*?)<\/dest>/);
+    if (!blockMatch) return '';
+    const block = blockMatch[1];
+    const r = new RegExp(`<${tag}>([^<]+)<\/${tag}>`);
+    const m = block.match(r);
+    return m ? m[1].trim() : '';
+  };
+
   return (
     <div>
       <div className="page-header">
@@ -608,40 +645,25 @@ export default function NotasFiscais({ invoices, companies, onSyncInvoice }) {
                 <table className="danfe-header-table">
                   <tbody>
                     <tr>
-                      <td style={{ width: "50%", verticalAlign: "top" }}>
+                      <td style={{ width: '55%', verticalAlign: 'top' }}>
                         <span className="danfe-label">Emitente</span>
-                        <div
-                          className="danfe-value"
-                          style={{ fontWeight: "bold" }}
-                        >
-                          {selectedInvoice.issuerName}
-                        </div>
-                        <div className="danfe-value">
-                          CNPJ: {formatCnpj(selectedInvoice.issuerCnpj)}
-                        </div>
-                        <div className="danfe-value">
-                          Av. Paulista, 1000 - Bela Vista - São Paulo - SP
+                        <div className="danfe-value" style={{ fontWeight: 'bold' }}>{selectedInvoice.issuerName}</div>
+                        <div className="danfe-value">CNPJ: {formatCnpj(selectedInvoice.issuerCnpj)}</div>
+                        <div className="danfe-value">IE: {getTagFromXmlBlock(selectedInvoice.xmlContent, 'emit', 'IE') || 'ISENTO'} {getTagFromXmlBlock(selectedInvoice.xmlContent, 'emit', 'IM') ? `| IM: ${getTagFromXmlBlock(selectedInvoice.xmlContent, 'emit', 'IM')}` : ''}</div>
+                        <div className="danfe-value" style={{ marginTop: '0.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          {parseAddressFromXml(selectedInvoice.xmlContent, 'emit')}
                         </div>
                       </td>
-                      <td style={{ width: "50%", verticalAlign: "top" }}>
-                        <span className="danfe-label">
-                          Controle do Fisco - Chave de Acesso
-                        </span>
-                        <div
-                          className="danfe-value"
-                          style={{
-                            fontFamily: "monospace",
-                            fontWeight: "bold",
-                            letterSpacing: "1px",
-                          }}
-                        >
-                          {selectedInvoice.chave.replace(/(.{4})/g, "$1 ")}
+                      <td style={{ width: '45%', verticalAlign: 'top' }}>
+                        <span className="danfe-label">Controle do Fisco - Chave de Acesso</span>
+                        <div className="danfe-value" style={{ fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '1px' }}>
+                          {selectedInvoice.chave.replace(/(.{4})/g, '$1 ')}
                         </div>
                         <div
                           style={{
-                            marginTop: "0.5rem",
-                            display: "flex",
-                            justifyContent: "space-between",
+                            marginTop: '0.5rem',
+                            display: 'flex',
+                            justifyContent: 'space-between',
                           }}
                         >
                           <div>
@@ -650,9 +672,7 @@ export default function NotasFiscais({ invoices, companies, onSyncInvoice }) {
                           </div>
                           <div>
                             <span className="danfe-label">Número</span>
-                            <div className="danfe-value">
-                              {selectedInvoice.chave.slice(-9, -1)}
-                            </div>
+                            <div className="danfe-value">{parseInt(selectedInvoice.chave.slice(25, 34), 10)}</div>
                           </div>
                           <div>
                             <span className="danfe-label">Data Emissão</span>
@@ -670,7 +690,7 @@ export default function NotasFiscais({ invoices, companies, onSyncInvoice }) {
               <div className="danfe-box">
                 <span className="danfe-label">Destinatário / Remetente</span>
                 <div className="danfe-row">
-                  <div className="danfe-col" style={{ flex: "2" }}>
+                  <div className="danfe-col" style={{ flex: '2' }}>
                     <span className="danfe-label">Nome / Razão Social</span>
                     <div className="danfe-value">
                       {selectedInvoice.recipientName}
@@ -682,17 +702,17 @@ export default function NotasFiscais({ invoices, companies, onSyncInvoice }) {
                       {formatCnpj(selectedInvoice.recipientCnpj)}
                     </div>
                   </div>
-                </div>
-                <div className="danfe-row">
-                  <div className="danfe-col" style={{ flex: "2" }}>
-                    <span className="danfe-label">Endereço</span>
+                  <div className="danfe-col">
+                    <span className="danfe-label">IE / IM</span>
                     <div className="danfe-value">
-                      Rua Oscar Freire, 500 - Pinheiros - São Paulo - SP
+                      {getTagFromXmlBlock(selectedInvoice.xmlContent, 'dest', 'IE') || 'ISENTO'} {getTagFromXmlBlock(selectedInvoice.xmlContent, 'dest', 'IM') ? `/ ${getTagFromXmlBlock(selectedInvoice.xmlContent, 'dest', 'IM')}` : ''}
                     </div>
                   </div>
+                </div>
+                <div className="danfe-row" style={{ borderBottom: 'none' }}>
                   <div className="danfe-col">
-                    <span className="danfe-label">CEP</span>
-                    <div className="danfe-value">05409-010</div>
+                    <span className="danfe-label">Endereço</span>
+                    <div className="danfe-value">{parseAddressFromXml(selectedInvoice.xmlContent, 'dest')}</div>
                   </div>
                 </div>
               </div>

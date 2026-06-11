@@ -28,36 +28,51 @@ export default function App() {
   const [tasks, setTasks] = useState([]);
   const [settings, setSettings] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [filterCompany, setFilterCompany] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   const fetchAllData = async () => {
     try {
       setErrorMsg("");
-      const [compRes, invRes, logsRes, setRes, tasksRes] = await Promise.all([
-        fetch(`${API_BASE}/companies`),
-        fetch(`${API_BASE}/invoices`),
+      // Fetch companies first
+      const compRes = await fetch(`${API_BASE}/companies`);
+      if (!compRes.ok) throw new Error("Failed to fetch companies");
+      const compData = await compRes.json();
+      setCompanies(compData);
+
+      // Set default company filter to first company if available
+      const defaultCnpj = compData.length > 0 ? compData[0].cnpj : "";
+      setFilterCompany(defaultCnpj);
+
+      // Fetch invoices for default company
+      const invoiceUrl = defaultCnpj
+        ? `${API_BASE}/invoices?companyCnpj=${encodeURIComponent(defaultCnpj)}`
+        : `${API_BASE}/invoices`;
+      const invRes = await fetch(invoiceUrl);
+      if (!invRes.ok) throw new Error("Failed to fetch invoices");
+      const invData = await invRes.json();
+
+      // Fetch other data in parallel
+      const [logsRes, setRes, tasksRes] = await Promise.all([
         fetch(`${API_BASE}/logs`),
         fetch(`${API_BASE}/settings`),
         fetch(`${API_BASE}/tasks`),
       ]);
 
-      if (compRes.ok && invRes.ok && logsRes.ok && setRes.ok && tasksRes.ok) {
-        const compData = await compRes.json();
-        const invData = await invRes.json();
-        const logsData = await logsRes.json();
-        const setData = await setRes.json();
-        const tasksData = await tasksRes.json();
-
-        setCompanies(compData);
-        setInvoices(invData);
-        setLogs(logsData);
-        setSettings(setData);
-        setTasks(tasksData);
-        setIsConnected(true);
-      } else {
-        throw new Error("Falha ao obter dados do servidor.");
+      if (!logsRes.ok || !setRes.ok || !tasksRes.ok) {
+        throw new Error("Failed to fetch auxiliary data");
       }
+
+      const logsData = await logsRes.json();
+      const setData = await setRes.json();
+      const tasksData = await tasksRes.json();
+
+      setInvoices(invData);
+      setLogs(logsData);
+      setSettings(setData);
+      setTasks(tasksData);
+      setIsConnected(true);
     } catch (err) {
       console.error(err);
       setIsConnected(false);
