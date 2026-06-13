@@ -26,7 +26,7 @@ async function parseNoteFile(filePath) {
 export function startNoteWatcher() {
   if (!fs.existsSync(WATCH_PATH)) {
     console.warn(`[NoteWatcher] Folder ${WATCH_PATH} does not exist – will be created.`);
-    fs.mkdirSync(WATCH_PATH, { recursive: true });
+    await fs.promises.mkdir(WATCH_PATH, { recursive: true });
   }
   const watcher = chokidar.watch(WATCH_PATH, { persistent: true, ignoreInitial: true });
 
@@ -55,7 +55,7 @@ export function startNoteWatcher() {
       console.error(`[NoteWatcher] Error processing ${filePath}:`, err);
       // Move problematic file to an error folder
       const errorDir = path.join(WATCH_PATH, 'error');
-      if (!fs.existsSync(errorDir)) fs.mkdirSync(errorDir);
+      if (!fs.existsSync(errorDir)) await fs.promises.mkdir(errorDir, { recursive: true });
       const baseName = path.basename(filePath);
       await fs.promises.rename(filePath, path.join(errorDir, baseName));
     }

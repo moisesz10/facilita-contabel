@@ -45,9 +45,7 @@ export async function syncInvoiceToAlterdata(invoice) {
       );
     } else {
       try {
-        if (!fs.existsSync(alterdataDir)) {
-          fs.mkdirSync(alterdataDir, { recursive: true });
-        }
+        await fs.promises.mkdir(alterdataDir, { recursive: true });
 
         const cleanCnpj = invoice.companyCnpj.replace(/\D/g, "");
         const dateObj = new Date(invoice.date);
@@ -69,18 +67,16 @@ export async function syncInvoiceToAlterdata(invoice) {
           folderPeriod,
           folderType,
         );
-        if (!fs.existsSync(targetFolder)) {
-          fs.mkdirSync(targetFolder, { recursive: true });
-        }
+        await fs.promises.mkdir(targetFolder, { recursive: true });
 
         const fileName = `${invoice.chave}-nfe.xml`;
         const filePath = path.join(targetFolder, fileName);
-        fs.writeFileSync(filePath, invoice.xmlContent, "utf8");
+        await fs.promises.writeFile(filePath, invoice.xmlContent, "utf8");
 
         const htmlContent = generateDanfeHtml(invoice);
         const htmlFileName = `${invoice.chave}-danfe.html`;
         const htmlFilePath = path.join(targetFolder, htmlFileName);
-        fs.writeFileSync(htmlFilePath, htmlContent, "utf8");
+        await fs.promises.writeFile(htmlFilePath, htmlContent, "utf8");
 
         dbService.addLog(
           "success",
