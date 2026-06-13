@@ -6,7 +6,7 @@ import fs from 'fs';
 import { dbService } from '../db.js';
 import { syncInvoiceToAlterdata } from '../alterdataService.js';
 import { saveToCofreDigital } from '../storageService.js';
-import { sendNotification } from './notification.js';
+import { enrichInvoiceWithCest } from '../cestService.js';
 
 // Folder to watch – can be overridden via env variable
 const NOTES_EXPORT_FOLDER = process.env.NOTES_EXPORT_FOLDER || 'notas_exportadas';
@@ -33,12 +33,11 @@ export function startNoteWatcher() {
   watcher.on('add', async (filePath) => {
     console.log(`[NoteWatcher] New file detected: ${filePath}`);
     try {
-      const noteData = await parseNoteFile(filePath);
-      // Assume noteData contains at least: chave, companyCnpj, type, value, issuerName, recipientName, date, xmlContent
-      const added = dbService.addInvoice({
-        ...noteData,
-        syncStatus: 'pending',
-      });
+      const enriched = enrichInvoiceWithCest(noteData);
+        const added = dbService.addInvoice({
+          ...enriched,
+          syncStatus: 'pending',
+        });
       // Save to Cofre Digital
       await saveToCofreDigital(added);
       // Sync to Alterdata
