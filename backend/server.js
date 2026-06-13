@@ -12,7 +12,9 @@ import "dotenv/config";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { v4 as uuidv4 } from "uuid"; // for safe filenames
-
+import cookieParser from "cookie-parser";
+import csurf from "csurf";
+import { body, validationResult } from "express-validator";
 // -------------------------------------------------------------------
 // Environment validation (fail fast if critical secrets are missing)
 // -------------------------------------------------------------------
@@ -115,6 +117,8 @@ const corsOptions = {
   optionsSuccessStatus: 200,
 };
 app.use(cors(corsOptions));
+app.use(cookieParser());
+app.use(csurf({ cookie: true }));
 app.use(express.json({ limit: "10mb" }));
 
 // Background Scheduler instance
@@ -165,9 +169,13 @@ function checkLoginAttempts(req, res, next) {
   next();
 }
 
-app.post("/api/auth/login", loginLimiter, checkLoginAttempts, async (req, res) => {
+app.post("/api/auth/login", loginLimiter, checkLoginAttempts, [ body('login').isString().notEmpty(), body('password').isString().notEmpty(), body('isContador').optional().isBoolean() ], async (req, res) => {
 
   const { login, password, isContador } = req.body;
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
 
   // Contador login (simple static password from settings)
   if (isContador) {
