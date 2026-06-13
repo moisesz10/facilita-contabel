@@ -12,6 +12,10 @@ const DB_PATH = path.join(__dirname, "database.json");
 // Default initial database state
 const DEFAULT_DB = {
   companies: [],
+  // Store contador password as bcrypt hash; empty by default (must be set via env)
+  // Users should set CONTADOR_PASSWORD_HASH env var before first start.
+  // The admin can later update via settings endpoint.
+
   invoices: [],
   settings: {
     alterdataDir: "",
@@ -27,7 +31,10 @@ const DEFAULT_DB = {
     awsRegion: "",
     awsAccessKey: "",
     awsSecretKey: "",
-    contadorPassword: "admin", // Senha padrão do escritório
+    // Contador password must be stored as bcrypt hash.
+    // Set via CONTADOR_PASSWORD_HASH env var before start.
+    contadorPasswordHash: "",
+
   },
   logs: [],
   tasks: [],
@@ -36,8 +43,13 @@ const DEFAULT_DB = {
 };
 
 const ALGORITHM = "aes-256-cbc";
+// ENCRYPTION_KEY must be provided via env variable; abort if missing
+if (!process.env.ENCRYPTION_KEY) {
+  console.error("❌ ENCRYPTION_KEY environment variable is not set. Exiting.");
+  process.exit(1);
+}
 const ENCRYPTION_KEY = crypto.scryptSync(
-  process.env.ENCRYPTION_KEY || "facilita-contabil-secreta-key-9988",
+  process.env.ENCRYPTION_KEY,
   "salt-key-salgada",
   32,
 );
@@ -52,6 +64,15 @@ function encrypt(text) {
 }
 
 function decrypt(text) {
+// Helper to remove potentially sensitive data from log messages
+function sanitizeLog(msg) {
+  if (!msg) return msg;
+  // Remove CNPJ patterns (14 digits) and JWT-like strings (three base64 parts)
+  return msg
+    .replace(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}\-?\d{2}\b/g, "[CNPJ]")
+    .replace(/([A-Za-z0-9_-]+\.){2}[A-Za-z0-9_-]+/g, "[TOKEN]");
+}
+
   if (!text) return "";
   if (!text.includes(":")) return text;
   try {
@@ -316,12 +337,21 @@ export const dbService = {
   getLogs: (limit = 100) => {
     return db.logs.slice(-limit).reverse();
   },
+  // Helper to remove potentially sensitive data from log messages
+  sanitizeLog(msg) {
+    if (!msg) return msg;
+    // Remove CNPJ patterns (14 digits) and JWT-like strings (three base64 parts)
+    return msg
+      .replace(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}\-?\d{2}\b/g, "[CNPJ]")
+      .replace(/([A-Za-z0-9_-]+\.){2}[A-Za-z0-9_-]+/g, "[TOKEN]");
+  },
   addLog: (type, message, companyCnpj = null) => {
+    const sanitized = sanitizeLog(message);
     const newLog = {
       id: Math.random().toString(36).substring(2, 9),
       timestamp: new Date().toISOString(),
       type, // 'info', 'warning', 'error', 'success'
-      message,
+      message: sanitized,
       companyCnpj,
     };
     db.logs.push(newLog);

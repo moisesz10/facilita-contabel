@@ -12,6 +12,23 @@ import "dotenv/config";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { v4 as uuidv4 } from "uuid"; // for safe filenames
+
+// -------------------------------------------------------------------
+// Environment validation (fail fast if critical secrets are missing)
+// -------------------------------------------------------------------
+if (!process.env.JWT_SECRET) {
+  console.error("❌ JWT_SECRET environment variable is not set. Exiting.");
+  process.exit(1);
+}
+if (!process.env.CORS_ORIGINS) {
+  console.error("❌ CORS_ORIGINS environment variable is not set. Exiting.");
+  process.exit(1);
+}
+if (!process.env.CONTADOR_PASSWORD_HASH) {
+  console.warn("⚠️ CONTADOR_PASSWORD_HASH not set. Default admin password will be insecure.");
+  // continue but warn – actual enforcement is in db defaults.
+}
+
 import { dbService } from "./db.js";
 import { fetchSefazInvoices, parseNFeXml, sendMdeEvent } from "./sefazService.js";
 import { syncInvoiceToAlterdata, syncPendingInvoices } from "./alterdataService.js";
@@ -63,8 +80,21 @@ const storage = multer.diskStorage({
   },
 });
 
+const ALLOWED_MIME = [
+  "application/x-pkcs12",
+  "application/x-pem-file",
+  "application/octet-stream",
+];
+
 const upload = multer({
   storage,
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!ALLOWED_CERT_EXT.includes(ext) || !ALLOWED_MIME.includes(file.mimetype)) {
+      return cb(new Error("Extensão ou tipo MIME de certificado não permitido."));
+    }
+    cb(null, true);
+  },
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 });
 
@@ -120,16 +150,36 @@ function startScheduler() {
 }
 
 // ------------------- Auth -------------------
-app.post("/api/auth/login", loginLimiter, async (req, res) => {
+// Simple brute‑force protection for login attempts per IP
+const loginAttempts = {};
+function checkLoginAttempts(req, res, next) {
+  const ip = req.ip;
+  const record = loginAttempts[ip];
+  if (record && record.blockedUntil && Date.now() < record.blockedUntil) {
+    return res.status(429).json({ error: "Muitas tentativas falhas. Tente novamente mais tarde." });
+  }
+  next();
+}
+
+app.post("/api/auth/login", loginLimiter, checkLoginAttempts, async (req, res) => {
+
   const { login, password, isContador } = req.body;
 
   // Contador login (simple static password from settings)
   if (isContador) {
     const settings = dbService.getSettings();
-    const match = await bcrypt.compare(password, settings.contadorPasswordHash || "");
+    const hash = settings.contadorPasswordHash || "";
+    const match = await bcrypt.compare(password, hash);
     if (match) {
       const token = jwt.sign({ role: "contador" }, process.env.JWT_SECRET, { expiresIn: "8h" });
       return res.json({ success: true, role: "contador", token });
+    }
+    // Register failed attempt
+    const ip = req.ip;
+    const rec = (loginAttempts[ip] = loginAttempts[ip] || { fails: 0, blockedUntil: null });
+    rec.fails += 1;
+    if (rec.fails >= 5) {
+      rec.blockedUntil = Date.now() + 15 * 60 * 1000; // 15 minutes
     }
     return res.status(401).json({ error: "Senha do escritório inválida." });
   }
@@ -139,7 +189,8 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
   const company = dbService.getCompanies().find(c => c.cnpj.replace(/\D/g, "") === cleanCnpj);
 
   if (company && company.portalAccess && company.portalPassword) {
-    const match = await bcrypt.compare(password, company.portalPasswordHash || "");
+    const hash = company.portalPasswordHash || "";
+    const match = await bcrypt.compare(password, hash);
     if (match) {
       const token = jwt.sign({ role: "empresa", cnpj: company.cnpj }, process.env.JWT_SECRET, { expiresIn: "8h" });
       return res.json({
@@ -148,6 +199,13 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
         token,
         company: { cnpj: company.cnpj, razaoSocial: company.razaoSocial },
       });
+    }
+    // Register failed attempt for non‑contadores as well
+    const ip = req.ip;
+    const rec = (loginAttempts[ip] = loginAttempts[ip] || { fails: 0, blockedUntil: null });
+    rec.fails += 1;
+    if (rec.fails >= 5) {
+      rec.blockedUntil = Date.now() + 15 * 60 * 1000;
     }
   }
   return res.status(401).json({ error: "CNPJ ou senha inválidos, ou acesso negado." });
@@ -177,6 +235,34 @@ app.use(roleGuard(["empresa", "contador"])); // both roles can access except whe
 app.get("/api/settings", (req, res) => {
   res.json(dbService.getSettings());
 });
+
+const DEFAULT_DB = {
+  companies: [],
+  invoices: [],
+  settings: {
+    alterdataDir: "",
+    autoSyncIntervalMinutes: 15,
+    isSefazSimulation: true,
+    lastAutoSync: null,
+    enableFolderSync: true,
+    enableCloudSync: false,
+    nfStockEmail: "",
+    nfStockToken: "",
+    enableCofreDigitalCloud: false,
+    awsBucketName: "",
+    awsRegion: "",
+    awsAccessKey: "",
+    awsSecretKey: "",
+    // Contador password must be stored as bcrypt hash.
+    // Users should set CONTADOR_PASSWORD_HASH env var before first start.
+    // The hash will be loaded into settings.contadorPasswordHash at runtime.
+    contadorPasswordHash: "",
+  },
+  logs: [],
+  tasks: [],
+  dp_requests: [],
+  tickets: [],
+};
 
 app.post("/api/settings", (req, res) => {
   const {
