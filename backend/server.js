@@ -43,14 +43,23 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+app.disable('x-powered-by');
 // Security middlewares
 app.use(helmet());
+app.use(helmet.referrerPolicy({ policy: 'no-referrer' }));
 // Global rate limiter (already present)
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100,
 });
 app.use(limiter);
+// Additional global rate limit (60 req/min)
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { error: 'Too many requests, try again later.' },
+});
+app.use(globalLimiter);
 // Specific login limiter (stricter)
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -66,7 +75,8 @@ const UPLOADS_DIR = path.join(__dirname, "uploads", "certificates_secure");
   try {
     await fs.promises.access(UPLOADS_DIR);
   } catch (_err) {
-    await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
+    await fs.promises.mkdir(UPLOADS_DIR, { recursion: true });
+    await fs.promises.chmod(UPLOADS_DIR, 0o700);
   }
 })();
 
@@ -394,3 +404,4 @@ app.listen(PORT, "127.0.0.1", () => {
   startScheduler();
   // Start watching exported notes folder
 });
+export default app;
