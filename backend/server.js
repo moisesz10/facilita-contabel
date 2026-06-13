@@ -58,11 +58,15 @@ const loginLimiter = rateLimit({
 
 const PORT = process.env.PORT || 4000;
 
-// Setup directories
+// Setup directories (async)
 const UPLOADS_DIR = path.join(__dirname, "uploads", "certificates_secure");
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-}
+(async () => {
+  try {
+    await fs.promises.access(UPLOADS_DIR);
+  } catch (_err) {
+    await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
+  }
+})();
 
 // Multer for file uploads – whitelist extensions and safe naming
 const ALLOWED_CERT_EXT = [".pfx", ".p12", ".pem"];
@@ -220,7 +224,7 @@ const authMiddleware = (req, res, next) => {
   }
   const token = authHeader.split(' ')[1];
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
     req.user = payload; // attach payload to request
     next();
   } catch (err) {
